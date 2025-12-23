@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import AddCategoryModal from "../components/AddCategoryModal";
 
 const AddExpense = () => {
   const navigate = useNavigate();
@@ -14,6 +15,22 @@ const AddExpense = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await api.get("/categories/");
+        setCategories(data);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    loadCategories();
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -22,7 +39,7 @@ const AddExpense = () => {
       setError("El importe debe ser mayor que 0");
       return;
     }
-    if (!category.trim()) {
+    if (!category.trim && typeof category === "string" ? category.trim() === "" : !category) {
       setError("La categoría es obligatoria");
       return;
     }
@@ -92,24 +109,39 @@ const AddExpense = () => {
         {/* Category */}
         <div className="space-y-1">
           <span className="text-sm text-gray-500">Categoría</span>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            required
-            className="w-full rounded-lg border px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Selecciona una categoría</option>
-            <option value="Alimentación">🍎 Alimentación</option>
-            <option value="Salidas">🍹 Salidas</option>
-            <option value="Transporte">🚗 Transporte</option>
-            <option value="Vivienda">🏠 Vivienda</option>
-            <option value="Servicios">💡 Servicios</option>
-            <option value="Ocio">🎮 Ocio</option>
-            <option value="Salud">💊 Salud</option>
-            <option value="Educación">📚 Educación</option>
-            <option value="Inversiones">📈 Inversiones</option>
-            <option value="Otros">📦 Otros</option>
-          </select>
+
+          {loadingCategories ? (
+            <p className="text-sm text-gray-400">Cargando categorías…</p>
+          ) : categories.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowCategoryModal(true)}
+              className="w-full rounded-lg border border-dashed py-3 text-sm text-blue-600 hover:bg-blue-50"
+            >
+              ➕ Crear primera categoría
+            </button>
+          ) : (
+            <select
+              value={category}
+              onChange={(e) => {
+                if (e.target.value === "__new__") {
+                  setShowCategoryModal(true);
+                } else {
+                  setCategory(e.target.value);
+                }
+              }}
+              required
+              className="w-full rounded-lg border px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Selecciona una categoría</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.icon ? `${cat.icon} ` : ""}{cat.name}
+                </option>
+              ))}
+              <option value="__new__">➕ Crear nueva categoría</option>
+            </select>
+          )}
         </div>
 
         {/* Date */}
@@ -149,6 +181,17 @@ const AddExpense = () => {
           </button>
         </div>
       </form>
+
+      {showCategoryModal && (
+        <AddCategoryModal
+          onClose={() => setShowCategoryModal(false)}
+          onCreated={(newCategory) => {
+            setCategories((prev) => [...prev, newCategory]);
+            setCategory(newCategory.id);
+            setShowCategoryModal(false);
+          }}
+        />
+      )}
     </section>
   );
 };

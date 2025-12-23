@@ -7,6 +7,7 @@ const api = axios.create({
   xsrfHeaderName: "X-CSRFToken", // 🔴 header que Django espera
 });
 
+
 api.interceptors.response.use(
   response => response.data,
   error => {
