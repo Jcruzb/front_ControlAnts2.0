@@ -14,6 +14,12 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        await api.post('/recurring/generate/');
+      } catch (e) {
+        console.error('Recurring generation failed', e);
+      }
+
+      try {
         setLoading(true)
 
         const today = new Date()
@@ -24,11 +30,11 @@ const Dashboard = () => {
           today.toLocaleString('es-ES', { month: 'long', year: 'numeric' })
         )
 
-        const expenses = await api.get('/expenses', {
+        const expenses = await api.get('/expenses/', {
           params: { year, month },
         })
 
-        const incomes = await api.get('/incomes', {
+        const incomes = await api.get('/incomes/', {
           params: { year, month },
         })
 

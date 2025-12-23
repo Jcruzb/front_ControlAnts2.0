@@ -15,7 +15,7 @@ const ExpensesList = () => {
         const year = today.getFullYear();
         const month = today.getMonth() + 1;
 
-        const data = await api.get("/expenses", {
+        const data = await api.get("/expenses/", {
           params: { year, month },
         });
 
@@ -89,7 +89,8 @@ const ExpensesList = () => {
           >
             <div className="flex-1 space-y-1">
               <p className="font-medium text-gray-900 truncate">
-                {expense.name || "Gasto"}
+                {expense.is_recurring === true && <span className="mr-1 text-gray-400">🔁</span>}
+                {expense.description || "Gasto"}
               </p>
               <p className="text-sm text-gray-500">
                 {expense.category || "Sin categoría"}
