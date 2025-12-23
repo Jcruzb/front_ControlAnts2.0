@@ -1,31 +1,17 @@
-//importando navigate
-import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
 const AppLayout = ({ children }) => {
-    const navigate = useNavigate();
-
-
-
-
     return (
-        <div>
-            <header>
-                <li>
-                    <button onClick={() => navigate('/')}>Dashboard</button>
-                </li>
-                <li>
-                    <button onClick={() => navigate('/expenses')}>Expenses List</button>
-                </li>
-                <li>
-                    <button onClick={() => navigate('/expenses/new')}>Add Expense</button>
-                </li>
+        <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
+            <header className="bg-white/80 backdrop-blur border-b border-slate-200 sticky top-0 z-10">
+                <Navbar />
             </header>
 
-            <main>
+            <main className="max-w-7xl mx-auto px-4 py-6">
                 {children}
             </main>
         </div>
-    )
-}
+    );
+};
 
 export default AppLayout;
