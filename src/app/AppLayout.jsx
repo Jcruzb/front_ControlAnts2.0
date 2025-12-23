@@ -1,8 +1,24 @@
+//importando navigate
+import { useNavigate } from "react-router-dom";
+
 const AppLayout = ({ children }) => {
+    const navigate = useNavigate();
+
+
+
+
     return (
         <div>
             <header>
-                <h2>ControlAnts</h2>
+                <li>
+                    <button onClick={() => navigate('/')}>Dashboard</button>
+                </li>
+                <li>
+                    <button onClick={() => navigate('/expenses')}>Expenses List</button>
+                </li>
+                <li>
+                    <button onClick={() => navigate('/expenses/new')}>Add Expense</button>
+                </li>
             </header>
 
             <main>
