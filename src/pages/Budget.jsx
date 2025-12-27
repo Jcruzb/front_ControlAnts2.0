@@ -31,8 +31,6 @@ export default function Budget() {
       setLoading(false);
     }
   }
-  console.log(data)
-
   async function handleQuickAddSubmit({
     amount,
     date_option,
@@ -86,7 +84,6 @@ export default function Budget() {
 
   const {
     status,
-    percentage_used,
     remaining_amount,
     total_planned,
     total_spent,

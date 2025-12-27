@@ -28,8 +28,6 @@ export default function BudgetItem({
 }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
-  console.log(item)
-
   const title = useMemo(() => {
     if (!item) return "";
     return type === "planned" ? item.category : item.name;
