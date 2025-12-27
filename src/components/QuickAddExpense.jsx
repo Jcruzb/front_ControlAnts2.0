@@ -4,13 +4,32 @@ import { useState } from "react";
 export default function QuickAddExpense({
   isOpen,
   onClose,
-  context, // { name, type, categoryIcon }
+  context,
+  onSubmit
 }) {
   if (!isOpen) return null;
 
   const [amount, setAmount] = useState("");
   const [dateOption, setDateOption] = useState("today");
   const [note, setNote] = useState("");
+
+  const handleSubmit = async () => {
+  if (!amount || Number(amount) <= 0) return;
+
+  await onSubmit({
+    amount: Number(amount),
+    date_option: dateOption,
+    note,
+    categoryId: context?.categoryId,
+    plannedExpenseId: context?.plannedExpenseId ?? null,
+    recurringPaymentId: context?.recurringPaymentId ?? null,
+  });
+
+  // reset UX
+  setAmount("");
+  setNote("");
+  setDateOption("today");
+};
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/40 sm:items-center">
@@ -91,6 +110,7 @@ export default function QuickAddExpense({
 
         {/* CTA */}
         <button
+        onClick={handleSubmit}
           disabled={!amount || Number(amount) <= 0}
           className="w-full rounded-xl bg-indigo-600 py-3 text-white disabled:opacity-40"
         >

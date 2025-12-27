@@ -37,9 +37,11 @@ export default function Budget() {
     amount,
     date_option,
     note,
+    categoryId,
     plannedExpenseId,
     recurringPaymentId,
   }) {
+    console.log('entra a handleQuickAddSubmit')
     const date = new Date();
     if (date_option === "yesterday") {
       date.setDate(date.getDate() - 1);
@@ -49,6 +51,7 @@ export default function Budget() {
       amount,
       date: date.toISOString().slice(0, 10),
       description: note || "",
+      category: categoryId,
       planned_expense: plannedExpenseId,
       recurring_payment: recurringPaymentId,
     });
@@ -147,7 +150,8 @@ export default function Budget() {
                 icon="🛒"
                 onQuickAddSubmit={handleQuickAddSubmit}
               />
-            ))}
+            )
+            )}
           </div>
         </section>
       )}

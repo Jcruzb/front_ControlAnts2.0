@@ -147,6 +147,7 @@ export default function BudgetItem({
           name: title,
           type,
           categoryIcon: icon,
+          categoryId: item.category,
           plannedExpenseId: type === "planned" ? item.id : null,
           recurringPaymentId: type === "recurring" ? item.id : null,
         }}
