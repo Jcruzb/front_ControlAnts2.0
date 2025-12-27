@@ -8,12 +8,16 @@ const NAV_ITEMS = [
     primary: true,
   },
   {
-    label: "Dashboard",
-    path: "/dashboard",
+    label: "Gastos fijos",
+    path: "/recurring",
   },
   {
     label: "Gastos",
     path: "/expenses",
+  },
+  {
+    label: "Dashboard",
+    path: "/dashboard",
   },
 ];
 

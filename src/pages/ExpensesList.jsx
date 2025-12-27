@@ -31,6 +31,8 @@ const ExpensesList = () => {
     fetchExpenses();
   }, []);
 
+  console.log(expenses)
+
   const totalAmount = useMemo(() => {
     return expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
   }, [expenses]);

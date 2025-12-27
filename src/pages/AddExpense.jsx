@@ -19,10 +19,6 @@ const AddExpense = () => {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [dueDay, setDueDay] = useState(new Date(date).getDate());
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -57,17 +53,7 @@ const AddExpense = () => {
         amount,
         category,
         date,
-        is_recurring: isRecurring,
       };
-
-      if (isRecurring) {
-        payload.recurring = {
-          due_day: dueDay,
-          start_date: date,
-          end_date: hasEndDate ? endDate : null,
-          name: description,
-        };
-      }
 
       await api.post("/expenses/", payload);
 
@@ -86,7 +72,7 @@ const AddExpense = () => {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Añadir gasto</h1>
         <p className="text-sm text-gray-500">
-          Registra un nuevo gasto en el mes actual
+          Apunta un gasto que ya has realizado
         </p>
       </header>
 
@@ -172,57 +158,6 @@ const AddExpense = () => {
           />
         </div>
 
-        {/* Recurring expense */}
-        <div className="space-y-1">
-          <label className="inline-flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={isRecurring}
-              onChange={(e) => setIsRecurring(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700">Este gasto se repite</span>
-          </label>
-
-          {isRecurring && (
-            <div className="space-y-4 mt-2">
-              <div>
-                <label className="block text-sm text-gray-500 mb-1" htmlFor="dueDay">
-                  Día de cobro
-                </label>
-                <input
-                  type="number"
-                  id="dueDay"
-                  min="1"
-                  max="31"
-                  value={dueDay}
-                  onChange={(e) => setDueDay(Number(e.target.value))}
-                  className="w-full rounded-lg border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="inline-flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={hasEndDate}
-                    onChange={(e) => setHasEndDate(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">Tiene fecha de fin</span>
-                </label>
-                {hasEndDate && (
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="mt-2 w-full rounded-lg border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                )}
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Error */}
         {error && (
