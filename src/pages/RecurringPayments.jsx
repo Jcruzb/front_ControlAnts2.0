@@ -86,6 +86,15 @@ export default function RecurringPayments() {
     }
   };
 
+  const handleReactivate = async (id) => {
+    try {
+      await recurringPaymentsService.reactivate(id);
+      loadData();
+    } catch (error) {
+      console.error("Error reactivando gasto fijo", error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -127,6 +136,7 @@ export default function RecurringPayments() {
               categoryMap={categoryMap}
               onEdit={openEditModal}
               onDeactivate={handleDeactivate}
+              onReactivate={handleReactivate}
             />
           ))}
         </div>
