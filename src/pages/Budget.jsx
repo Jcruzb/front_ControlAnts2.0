@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useMemo, useState } from "react";
 import BudgetItem from "../components/BudgetItem";
 import api from "../services/api"; // axios centralizado
@@ -9,8 +10,8 @@ const MONTH_NAMES = [
 
 export default function Budget() {
   const now = new Date();
-  const [year] = useState(now.getFullYear());
-  const [month] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -108,11 +109,43 @@ export default function Budget() {
 
   return (
     <div className="space-y-6 p-4">
-      {/* Header */}
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold">Presupuesto · {monthLabel}</h1>
-        <p className={`text-sm ${statusColor}`}>{statusText}</p>
-      </header>
+      {/* Selector de mes / año */}
+      <section className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-800">
+            {monthLabel}
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <select
+            className="rounded-lg border px-2 py-1 text-sm"
+            value={month}
+            onChange={(e) => setMonth(Number(e.target.value))}
+          >
+            {MONTH_NAMES.map((name, idx) => (
+              <option key={idx + 1} value={idx + 1}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="rounded-lg border px-2 py-1 text-sm"
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+          >
+            {Array.from({ length: 5 }).map((_, i) => {
+              const y = now.getFullYear() - 2 + i;
+              return (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      </section>
 
       {/* Totales */}
       <section className="grid grid-cols-3 gap-3">
@@ -130,6 +163,11 @@ export default function Budget() {
           <p className="text-xs text-gray-500">Planificado</p>
           <p className="text-lg font-semibold">{total_planned} €</p>
         </div>
+      </section>
+      <section>
+        <p className={`text-sm font-medium ${statusColor}`}>
+          {statusText}
+        </p>
       </section>
 
       {/* Planned expenses */}
