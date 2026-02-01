@@ -1,5 +1,3 @@
-
-
 import { useMemo, useState } from "react";
 import QuickAddExpense from "./QuickAddExpense";
 
@@ -25,6 +23,8 @@ export default function BudgetItem({
   item,
   icon = "💸",
   onQuickAddSubmit,
+  budgetYear,
+  budgetMonth,
 }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
@@ -141,6 +141,8 @@ export default function BudgetItem({
       <QuickAddExpense
         isOpen={isQuickAddOpen}
         onClose={handleCloseQuickAdd}
+        budgetYear={budgetYear}
+        budgetMonth={budgetMonth}
         context={{
           name: title,
           type,

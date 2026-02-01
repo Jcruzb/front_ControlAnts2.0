@@ -34,35 +34,15 @@ export default function Budget() {
   }
   async function handleQuickAddSubmit({
     amount,
-    date_option,
-    custom_date,
+    date,
     note,
     categoryId,
     plannedExpenseId,
     recurringPaymentId,
   }) {
-    // Date rules:
-    // - If user picked a custom date, use it as-is.
-    // - Otherwise, record the expense within the currently selected budget month/year.
-    //   We keep the day-of-month from today (or today-1 for "Ayer") and clamp to the month length.
-    const pad2 = (n) => String(n).padStart(2, "0");
-
-    const today = new Date();
-    let baseDay = today.getDate();
-
-    // If user selects "Ayer", subtract 1 day from the base day (within the selected month context)
-    if (date_option === "yesterday") {
-      baseDay = baseDay - 1;
-    }
-
-    const daysInSelectedMonth = new Date(year, month, 0).getDate(); // month is 1-12 here
-    const safeDay = Math.min(Math.max(baseDay, 1), daysInSelectedMonth);
-
-    const computedDate = `${year}-${pad2(month)}-${pad2(safeDay)}`;
-
     const payload = {
       amount,
-      date: date_option === "custom" && custom_date ? custom_date : computedDate,
+      date, // already resolved by the QuickAddExpense modal
       description: note || "",
       category: categoryId,
       planned_expense: plannedExpenseId,
@@ -72,7 +52,6 @@ export default function Budget() {
     console.log("[QuickAdd] Enviando gasto:", payload);
 
     await api.post("/expenses/", payload);
-
     await fetchBudget();
   }
 
@@ -251,7 +230,8 @@ export default function Budget() {
                 item={item}
                 icon="🛒"
                 onQuickAddSubmit={handleQuickAddSubmit}
-                monthLabel={monthLabel}
+                budgetYear={year}
+                budgetMonth={month}
               />
             )
             )}
@@ -273,7 +253,8 @@ export default function Budget() {
                 item={item}
                 icon="🔁"
                 onQuickAddSubmit={handleQuickAddSubmit}
-                monthLabel={monthLabel}
+                budgetYear={year}
+                budgetMonth={month}
               />
             ))}
           </div>
