@@ -11,6 +11,10 @@ export default function QuickAddExpense({
 
   const [amount, setAmount] = useState("");
   const [dateOption, setDateOption] = useState("today");
+  const [customDate, setCustomDate] = useState(() => {
+    // yyyy-mm-dd
+    return new Date().toISOString().slice(0, 10);
+  });
   const [note, setNote] = useState("");
 
   const handleSubmit = async () => {
@@ -19,6 +23,7 @@ export default function QuickAddExpense({
   await onSubmit({
     amount: Number(amount),
     date_option: dateOption,
+    custom_date: dateOption === "custom" ? customDate : null,
     note,
     categoryId: context?.categoryId,
     plannedExpenseId: context?.plannedExpenseId ?? null,
@@ -93,8 +98,22 @@ export default function QuickAddExpense({
 
           {/* Month info (placeholder UX) */}
           <p className="mt-2 text-xs text-gray-500">
-            Se registrará en: <strong>Mes actual</strong>
+            Se registrará en: <strong>{context?.monthLabel || "Mes seleccionado"}</strong>
           </p>
+
+          {dateOption === "custom" && (
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Fecha
+              </label>
+              <input
+                type="date"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          )}
         </div>
 
         {/* Note */}
