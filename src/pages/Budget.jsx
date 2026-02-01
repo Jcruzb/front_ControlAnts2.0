@@ -85,6 +85,24 @@ export default function Budget() {
     [month, year]
   );
 
+  const goPrevMonth = () => {
+    setMonth((prev) => {
+      if (prev > 1) return prev - 1;
+      // from January -> December previous year
+      setYear((y) => y - 1);
+      return 12;
+    });
+  };
+
+  const goNextMonth = () => {
+    setMonth((prev) => {
+      if (prev < 12) return prev + 1;
+      // from December -> January next year
+      setYear((y) => y + 1);
+      return 1;
+    });
+  };
+
   if (loading) {
     return (
       <div className="p-4">
@@ -128,27 +146,47 @@ export default function Budget() {
   return (
     <div className="space-y-6 p-4">
       {/* Selector de mes / año */}
-      <section className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-800">
+      <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {/* Left: arrows + current label */}
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={goPrevMonth}
+            aria-label="Mes anterior"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-white text-gray-700 hover:bg-gray-50"
+          >
+            <span aria-hidden>←</span>
+          </button>
+
+          <h1 className="flex-1 text-center text-lg font-semibold leading-tight text-gray-800 md:text-left">
             {monthLabel}
           </h1>
+
+          <button
+            type="button"
+            onClick={goNextMonth}
+            aria-label="Mes siguiente"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-white text-gray-700 hover:bg-gray-50"
+          >
+            <span aria-hidden>→</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right: today + selects (stack on mobile) */}
+        <div className="grid grid-cols-3 items-center gap-2 md:flex md:flex-wrap md:justify-end">
           <button
             type="button"
             onClick={() => {
               setYear(now.getFullYear());
               setMonth(now.getMonth() + 1);
             }}
-            className="rounded-lg border bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 md:text-sm"
+            className="col-span-1 rounded-xl border bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
           >
             Hoy
           </button>
 
           <select
-            className="rounded-lg border px-2 py-1 text-sm"
+            className="col-span-1 w-full rounded-xl border bg-white px-3 py-2 text-sm"
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
           >
@@ -160,7 +198,7 @@ export default function Budget() {
           </select>
 
           <select
-            className="rounded-lg border px-2 py-1 text-sm"
+            className="col-span-1 w-full rounded-xl border bg-white px-3 py-2 text-sm"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
           >
@@ -177,7 +215,7 @@ export default function Budget() {
       </section>
 
       {/* Totales */}
-      <section className="grid grid-cols-3 gap-3">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border bg-white p-3">
           <p className="text-xs text-gray-500">Gastado</p>
           <p className="text-lg font-semibold">{total_spent} €</p>
