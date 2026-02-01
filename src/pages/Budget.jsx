@@ -118,6 +118,17 @@ export default function Budget() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setYear(now.getFullYear());
+              setMonth(now.getMonth() + 1);
+            }}
+            className="rounded-lg border bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 md:text-sm"
+          >
+            Hoy
+          </button>
+
           <select
             className="rounded-lg border px-2 py-1 text-sm"
             value={month}
