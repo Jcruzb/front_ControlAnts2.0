@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+
 function getStatusMeta(status) {
   switch (status) {
     case "RESOLVED":
@@ -22,15 +24,35 @@ export default function IncomePlanMonthItem({
   item,
   onConfirm,
   onAdjust,
+  onEdit,
+  onDelete,
   loadingAction = null,
   disabled = false,
 }) {
+  const [showActions, setShowActions] = useState(false);
+  const actionsRef = useRef(null);
   const status = item?.status || "PENDING";
   const statusMeta = getStatusMeta(status);
   const resolvedIncome = item?.resolved_income || null;
   const plannedAmount = item?.planned_amount ?? 0;
   const canResolve = item?.can_resolve !== false && !disabled;
   const categoryName = item?.category_detail?.name || item?.category || "Sin categoría";
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (actionsRef.current && !actionsRef.current.contains(event.target)) {
+        setShowActions(false);
+      }
+    }
+
+    if (showActions) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showActions]);
 
   return (
     <article className="rounded-[30px] border border-white/8 bg-white/[0.04] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur-sm">
@@ -54,6 +76,42 @@ export default function IncomePlanMonthItem({
             {categoryName}
             {item?.due_day ? ` · Día ${item.due_day}` : ""}
           </p>
+        </div>
+
+        <div className="relative shrink-0" ref={actionsRef}>
+          <button
+            type="button"
+            onClick={() => setShowActions((value) => !value)}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xl leading-none text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+            aria-label="Abrir opciones"
+          >
+            ⋯
+          </button>
+
+          {showActions && (
+            <div className="absolute right-0 z-50 mt-2 w-40 overflow-hidden rounded-2xl border border-white/10 bg-[#11161d] shadow-[0_24px_50px_rgba(0,0,0,0.45)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowActions(false);
+                  onEdit?.(item);
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/[0.06]"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowActions(false);
+                  onDelete?.(item);
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-red-300 transition hover:bg-red-500/10"
+              >
+                Eliminar
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -93,9 +93,10 @@ export default function BulkImportModal({
     !saving;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:justify-center">
-      <div className="w-full max-w-5xl rounded-[32px] border border-white/10 bg-[#0d1117] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:p-6">
-        <div className="mb-5 flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-start sm:justify-between">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-3 backdrop-blur-sm">
+      <div className="flex min-h-full items-end sm:items-center sm:justify-center">
+        <div className="flex w-full max-w-6xl flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#0d1117] shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:max-h-[calc(100vh-2rem)]">
+        <div className="flex flex-col gap-4 border-b border-white/8 px-5 pb-5 pt-5 sm:flex-row sm:items-start sm:justify-between sm:px-6 sm:pt-6">
           <div className="space-y-2">
             <p className="text-sm text-slate-400">Importacion masiva</p>
             <h2 className="text-2xl font-semibold tracking-tight text-white">
@@ -113,8 +114,8 @@ export default function BulkImportModal({
           </button>
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-          <aside className="space-y-4">
+        <div className="grid min-h-0 flex-1 gap-5 overflow-hidden px-5 pb-5 sm:px-6 sm:pb-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+          <aside className="space-y-4 overflow-y-auto pt-5 xl:pr-1">
             <div className="rounded-[28px] border border-white/8 bg-white/[0.04] p-4">
               <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
                 Flujo
@@ -178,8 +179,8 @@ export default function BulkImportModal({
             ) : null}
           </aside>
 
-          <section className="rounded-[28px] border border-white/8 bg-white/[0.04] p-4">
-            <div className="mb-4 flex flex-col gap-3 border-b border-white/8 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <section className="flex min-h-0 flex-col rounded-[28px] border border-white/8 bg-white/[0.04] p-4 xl:my-5">
+            <div className="flex flex-col gap-3 border-b border-white/8 pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
                   Vista previa
@@ -204,14 +205,24 @@ export default function BulkImportModal({
             </div>
 
             {previewRows.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                  <span>
+                    Columnas: {previewColumns.length}
+                  </span>
+                  <span>
+                    Filas cargadas: {previewRows.length}
+                  </span>
+                </div>
+
+                <div className="min-h-[20rem] flex-1 overflow-auto rounded-[24px] border border-white/8 bg-black/20">
                 <table className="min-w-full border-separate border-spacing-y-2">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-[#11161d] shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
                     <tr>
                       {previewColumns.map((column) => (
                         <th
                           key={column.key}
-                          className="px-3 py-2 text-left text-[11px] uppercase tracking-[0.18em] text-slate-500"
+                          className="whitespace-nowrap px-3 py-3 text-left text-[11px] uppercase tracking-[0.18em] text-slate-500"
                         >
                           {column.label}
                         </th>
@@ -224,7 +235,7 @@ export default function BulkImportModal({
                         {previewColumns.map((column) => (
                           <td
                             key={column.key}
-                            className="px-3 py-3 text-sm text-slate-200 first:rounded-l-2xl last:rounded-r-2xl"
+                            className="whitespace-nowrap px-3 py-3 text-sm text-slate-200 first:rounded-l-2xl last:rounded-r-2xl"
                           >
                             {row[column.key] || "—"}
                           </td>
@@ -233,14 +244,16 @@ export default function BulkImportModal({
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             ) : (
-              <div className="flex min-h-56 items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-black/20 p-6 text-center text-sm text-slate-500">
+              <div className="mt-4 flex min-h-[20rem] flex-1 items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-black/20 p-6 text-center text-sm text-slate-500">
                 {emptyPreviewMessage}
               </div>
             )}
           </section>
         </div>
+      </div>
       </div>
     </div>
   );

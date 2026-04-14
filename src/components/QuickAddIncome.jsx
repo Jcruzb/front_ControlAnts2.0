@@ -31,10 +31,15 @@ export default function QuickAddIncome({
   year,
   month,
   onCreated,
+  onSaved,
+  income = null,
+  open,
+  onOpenChange,
   buttonLabel = "+ Añadir ingreso",
   buttonClassName = "rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1]",
 }) {
-  const [open, setOpen] = useState(false);
+  const isControlled = typeof open === "boolean";
+  const [internalOpen, setInternalOpen] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
 
   const [categories, setCategories] = useState([]);
@@ -50,6 +55,8 @@ export default function QuickAddIncome({
     description: "",
     date: "",
   });
+
+  const isOpen = isControlled ? open : internalOpen;
 
   const monthLabel = useMemo(
     () => `${MONTH_NAMES[month - 1]} ${year}`,
@@ -111,21 +118,30 @@ export default function QuickAddIncome({
   }
 
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
 
-    setForm((f) => ({
-      ...f,
-      date: f.date || getDefaultIncomeDate(year, month),
-    }));
+    setForm({
+      amount: income?.amount !== undefined && income?.amount !== null ? String(income.amount) : "",
+      categoryId:
+        income?.category !== undefined && income?.category !== null
+          ? String(income.category)
+          : "",
+      description: income?.description || "",
+      date: income?.date || getDefaultIncomeDate(year, month),
+    });
 
     fetchCategories();
-  }, [open, year, month]);
+  }, [income, isOpen, year, month]);
 
   function resetAndClose() {
     setError(null);
     setSaving(false);
-    setOpen(false);
     setShowAddCategory(false);
+    if (isControlled) {
+      onOpenChange?.(false);
+    } else {
+      setInternalOpen(false);
+    }
     setForm({
       amount: "",
       categoryId: "",
@@ -165,9 +181,14 @@ export default function QuickAddIncome({
 
     try {
       setSaving(true);
-      await api.post("/incomes/", payload);
+      if (income?.id) {
+        await api.patch(`/incomes/${income.id}/`, payload);
+      } else {
+        await api.post("/incomes/", payload);
+      }
       resetAndClose();
-      if (onCreated) await onCreated();
+      if (onSaved) await onSaved();
+      else if (onCreated) await onCreated();
     } catch (err) {
       console.error(err);
       setError(getApiErrorMessage(err, "Error al guardar el ingreso"));
@@ -178,30 +199,33 @@ export default function QuickAddIncome({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setForm({
-            amount: "",
-            categoryId: "",
-            description: "",
-            date: getDefaultIncomeDate(year, month),
-          });
-          setOpen(true);
-        }}
-        className={buttonClassName}
-      >
-        {buttonLabel}
-      </button>
+      {!isControlled && (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setForm({
+              amount: "",
+              categoryId: "",
+              description: "",
+              date: getDefaultIncomeDate(year, month),
+            });
+            setInternalOpen(true);
+          }}
+          className={buttonClassName}
+        >
+          {buttonLabel}
+        </button>
+      )}
 
-      {open && (
+      {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[32px] border border-white/10 bg-[#0d1117] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-400">Ingreso puntual</p>
                 <h3 className="text-lg font-semibold tracking-tight text-white">
-                  Añadir ingreso
+                  {income?.id ? "Editar ingreso" : "Añadir ingreso"}
                 </h3>
                 <p className="text-xs text-slate-500">Mes: {monthLabel}</p>
               </div>
@@ -325,7 +349,7 @@ export default function QuickAddIncome({
                   disabled={saving}
                   className="flex-1 rounded-2xl bg-emerald-400 py-3 font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:opacity-50"
                 >
-                  {saving ? "Guardando…" : "Guardar"}
+                  {saving ? "Guardando…" : income?.id ? "Guardar cambios" : "Guardar"}
                 </button>
                 <button
                   type="button"

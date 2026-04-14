@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, {
   getApiErrorMessage,
   unwrapCollectionResponse,
@@ -46,6 +46,112 @@ function getIncomeIconLabel(income) {
   return icon.slice(0, 1).toUpperCase();
 }
 
+function IncomeCard({ income, categoryColor, onEdit, onDelete }) {
+  const [showActions, setShowActions] = useState(false);
+  const actionsRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (actionsRef.current && !actionsRef.current.contains(event.target)) {
+        setShowActions(false);
+      }
+    }
+
+    if (showActions) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showActions]);
+
+  return (
+    <article className="flex flex-col gap-4 rounded-[30px] border border-white/8 bg-white/[0.04] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)] md:flex-row md:items-center md:justify-between">
+      <div className="flex items-center gap-4">
+        <div
+          className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-bold text-white"
+          style={{ backgroundColor: categoryColor }}
+        >
+          {getIncomeIconLabel(income)}
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-semibold text-white">
+              {getIncomeCategoryName(income)}
+            </h2>
+            <span
+              className="rounded-full px-2 py-1 text-xs font-medium"
+              style={{
+                backgroundColor: `${categoryColor}22`,
+                color: categoryColor,
+              }}
+            >
+              {income.date}
+            </span>
+          </div>
+
+          <p className="text-sm text-slate-400">
+            {income.description || "Sin descripción"}
+          </p>
+        </div>
+      </div>
+
+      <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
+        <div className="flex items-start gap-3">
+          <div className="text-right">
+            <p className="text-xl font-semibold text-emerald-300">
+              + {Number(income.amount).toFixed(2)} €
+            </p>
+            {income.created_at && (
+              <p className="text-xs text-slate-500">
+                Creado: {new Date(income.created_at).toLocaleString("es-ES")}
+              </p>
+            )}
+          </div>
+
+          <div className="relative" ref={actionsRef}>
+            <button
+              type="button"
+              onClick={() => setShowActions((v) => !v)}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xl leading-none text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+              aria-label="Abrir opciones"
+            >
+              ⋯
+            </button>
+
+            {showActions && (
+              <div className="absolute right-0 z-50 mt-2 w-36 overflow-hidden rounded-2xl border border-white/10 bg-[#11161d] shadow-[0_24px_50px_rgba(0,0,0,0.45)]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowActions(false);
+                    onEdit(income);
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/[0.06]"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowActions(false);
+                    onDelete(income);
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm text-red-300 transition hover:bg-red-500/10"
+                >
+                  Eliminar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function IncomesList() {
   const {
     currentYear,
@@ -66,6 +172,7 @@ export default function IncomesList() {
   const [sortBy, setSortBy] = useState("date_desc");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkImportMessage, setBulkImportMessage] = useState(null);
+  const [editingIncome, setEditingIncome] = useState(null);
 
   const fetchIncomes = useCallback(async () => {
     try {
@@ -332,6 +439,26 @@ export default function IncomesList() {
     );
   }
 
+  async function handleDeleteIncome(income) {
+    const incomeLabel =
+      income.description || getIncomeCategoryName(income) || "este ingreso";
+
+    if (
+      !window.confirm(`¿Eliminar ${incomeLabel}? Esta acción no se puede deshacer.`)
+    ) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await api.delete(`/incomes/${income.id}/`);
+      await fetchIncomes();
+    } catch (deleteError) {
+      console.error(deleteError);
+      setError(getApiErrorMessage(deleteError, "No se pudo eliminar el ingreso"));
+    }
+  }
+
   return (
     <section className="space-y-8">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -463,51 +590,13 @@ export default function IncomesList() {
             const categoryColor = getIncomeCategoryColor(income);
 
             return (
-              <article
+              <IncomeCard
                 key={income.id}
-                className="flex flex-col gap-4 rounded-[30px] border border-white/8 bg-white/[0.04] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)] md:flex-row md:items-center md:justify-between"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-bold text-white"
-                    style={{ backgroundColor: categoryColor }}
-                  >
-                    {getIncomeIconLabel(income)}
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-base font-semibold text-white">
-                        {getIncomeCategoryName(income)}
-                      </h2>
-                      <span
-                        className="rounded-full px-2 py-1 text-xs font-medium"
-                        style={{
-                          backgroundColor: `${categoryColor}22`,
-                          color: categoryColor,
-                        }}
-                      >
-                        {income.date}
-                      </span>
-                    </div>
-
-                    <p className="text-sm text-slate-400">
-                      {income.description || "Sin descripción"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-xl font-semibold text-emerald-300">
-                    + {Number(income.amount).toFixed(2)} €
-                  </p>
-                  {income.created_at && (
-                    <p className="text-xs text-slate-500">
-                      Creado: {new Date(income.created_at).toLocaleString("es-ES")}
-                    </p>
-                  )}
-                </div>
-              </article>
+                income={income}
+                categoryColor={categoryColor}
+                onEdit={(selectedIncome) => setEditingIncome(selectedIncome)}
+                onDelete={handleDeleteIncome}
+              />
             );
           })}
         </div>
@@ -535,6 +624,22 @@ export default function IncomesList() {
         onConfirm={saveBulkIncomes}
         confirmLabel="Guardar ingresos"
         emptyPreviewMessage="Carga una plantilla Excel para previsualizar los ingresos."
+      />
+
+      <QuickAddIncome
+        year={year}
+        month={month}
+        income={editingIncome}
+        open={Boolean(editingIncome)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setEditingIncome(null);
+          }
+        }}
+        onSaved={async () => {
+          setEditingIncome(null);
+          await fetchIncomes();
+        }}
       />
     </section>
   );

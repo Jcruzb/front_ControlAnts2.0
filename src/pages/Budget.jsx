@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import BudgetItem from "../components/BudgetItem";
 import AdjustIncomePlanModal from "../components/AdjustIncomePlanModal";
+import CreateIncomePlanModal from "../components/CreateIncomePlanModal";
 import IncomePlanMonthItem from "../components/IncomePlanMonthItem";
 import MonthNavigation from "../components/MonthNavigation";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
@@ -11,8 +12,11 @@ import api, {
 import QuickAddIncome from "../components/QuickAddIncome";
 import MobilePrimaryAction from "../components/MobilePrimaryAction";
 import {
+  createIncomePlan,
   adjustIncomePlan,
   confirmIncomePlan,
+  deleteIncomePlan,
+  updateIncomePlan,
   getIncomePlansMonth,
 } from "../services/incomePlans";
 
@@ -44,6 +48,10 @@ export default function Budget() {
   const [adjustingPlan, setAdjustingPlan] = useState(null);
   const [adjustModalError, setAdjustModalError] = useState(null);
   const [adjustModalLoading, setAdjustModalLoading] = useState(false);
+  const [createPlanOpen, setCreatePlanOpen] = useState(false);
+  const [createPlanError, setCreatePlanError] = useState(null);
+  const [createPlanLoading, setCreatePlanLoading] = useState(false);
+  const [editingIncomePlan, setEditingIncomePlan] = useState(null);
 
   const getIncomeCategoryName = useCallback((income) => {
     if (typeof income?.category_detail?.name === "string") {
@@ -184,7 +192,19 @@ export default function Budget() {
   }, [incomePlanMonthBlock]);
 
   const totalSpent = data?.total_spent || 0;
-  const net = totalIncome - totalSpent;
+  const plannedRecurringIncome = useMemo(() => {
+    return normalizedIncomePlanMonth.items.reduce((sum, item) => {
+      if (item.status !== "PENDING") {
+        return sum;
+      }
+
+      return sum + Number(item.planned_amount || 0);
+    }, 0);
+  }, [normalizedIncomePlanMonth.items]);
+
+  const totalIncomeWithRecurring = totalIncome + plannedRecurringIncome;
+  const net = totalIncomeWithRecurring - totalSpent;
+  const selectedMonthId = data?.month_id ?? data?.income_plan_month?.month_id ?? null;
 
   if (loading) {
     return (
@@ -221,7 +241,7 @@ export default function Budget() {
 
     try {
       setActiveIncomePlanAction({ id: planId, type: "confirm" });
-      await confirmIncomePlan(planId);
+      await confirmIncomePlan(planId, { year, month });
       await refreshIncomeArea();
     } catch (err) {
       console.error(err);
@@ -240,7 +260,11 @@ export default function Budget() {
     try {
       setAdjustModalError(null);
       setAdjustModalLoading(true);
-      await adjustIncomePlan(planId, payload);
+      await adjustIncomePlan(planId, {
+        ...payload,
+        year,
+        month,
+      });
       setAdjustingPlan(null);
       await refreshIncomeArea();
     } catch (err) {
@@ -250,6 +274,124 @@ export default function Budget() {
       );
     } finally {
       setAdjustModalLoading(false);
+    }
+  }
+
+  async function handleCreateIncomePlan(payload) {
+    if (!selectedMonthId) {
+      setCreatePlanError("No se pudo identificar el mes seleccionado");
+      return;
+    }
+
+    const categoryId = Number(payload.categoryId);
+    const amount = Number(payload.amount);
+    const dueDay = payload.dueDay ? Number(payload.dueDay) : null;
+
+    if (!categoryId) {
+      setCreatePlanError("Debes seleccionar una categoría");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      setCreatePlanError("El importe debe ser mayor que 0");
+      return;
+    }
+
+    try {
+      setCreatePlanError(null);
+      setCreatePlanLoading(true);
+
+      const plan = await createIncomePlan({
+        category: categoryId,
+        name: payload.name || "",
+        plan_type: payload.planType,
+        due_day: dueDay,
+        active: true,
+        start_month: selectedMonthId,
+        end_month: payload.planType === "ONE_MONTH" ? selectedMonthId : null,
+        planned_amount: amount,
+      });
+
+      await confirmIncomePlan(plan.id, { year, month });
+
+      setCreatePlanOpen(false);
+      await refreshIncomeArea();
+    } catch (err) {
+      console.error(err);
+      setCreatePlanError(
+        getApiErrorMessage(err, "No se pudo crear el sueldo recurrente")
+      );
+    } finally {
+      setCreatePlanLoading(false);
+    }
+  }
+
+  async function handleSaveIncomePlan(payload) {
+    if (editingIncomePlan) {
+      const planId = editingIncomePlan.plan_id;
+      const plannedAmount = Number(payload.amount);
+
+      if (!planId) {
+        setCreatePlanError("No se pudo identificar el sueldo a editar");
+        return;
+      }
+
+      if (!plannedAmount || plannedAmount <= 0) {
+        setCreatePlanError("El importe debe ser mayor que 0");
+        return;
+      }
+
+      try {
+        setCreatePlanError(null);
+        setCreatePlanLoading(true);
+
+        await updateIncomePlan(planId, {
+          category: Number(payload.categoryId),
+          name: payload.name || "",
+          plan_type: payload.planType,
+          due_day: payload.dueDay ? Number(payload.dueDay) : null,
+          active: true,
+          start_month: editingIncomePlan.start_month || selectedMonthId,
+          end_month:
+            payload.planType === "ONE_MONTH"
+              ? editingIncomePlan.start_month || selectedMonthId
+              : editingIncomePlan.end_month || null,
+          planned_amount: plannedAmount,
+        });
+
+        setEditingIncomePlan(null);
+        setCreatePlanOpen(false);
+        await refreshIncomeArea();
+      } catch (err) {
+        console.error(err);
+        setCreatePlanError(
+          getApiErrorMessage(err, "No se pudo editar el sueldo recurrente")
+        );
+      } finally {
+        setCreatePlanLoading(false);
+      }
+
+      return;
+    }
+
+    await handleCreateIncomePlan(payload);
+  }
+
+  async function handleDeleteIncomePlan(item) {
+    const planId = item?.plan_id;
+    if (!planId) return;
+
+    if (!window.confirm("¿Eliminar este sueldo recurrente?")) return;
+
+    try {
+      setIncomePlanMonthError(null);
+      await deleteIncomePlan(planId);
+      await refreshIncomeArea();
+    } catch (err) {
+      console.error(err);
+      setIncomePlanMonthError(
+        getApiErrorMessage(err, "No se pudo eliminar el sueldo recurrente")
+      );
     }
   }
 
@@ -290,7 +432,7 @@ export default function Budget() {
                   Ingresos
                 </p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                  {totalIncome.toFixed(0)} €
+                  {totalIncomeWithRecurring.toFixed(0)} €
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
@@ -374,7 +516,7 @@ export default function Budget() {
                   Total ingresos
                 </p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                  {totalIncome.toFixed(2)} €
+                  {totalIncomeWithRecurring.toFixed(2)} €
                 </p>
               </div>
               <div
@@ -512,6 +654,17 @@ export default function Budget() {
                   Confirma o ajusta los ingresos recurrentes del mes.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatePlanError(null);
+                  setEditingIncomePlan(null);
+                  setCreatePlanOpen(true);
+                }}
+                className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
+              >
+                + Crear sueldo recurrente
+              </button>
               {normalizedIncomePlanMonth.isClosed && (
                 <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-medium text-slate-300">
                   Mes cerrado
@@ -549,6 +702,12 @@ export default function Budget() {
                           : null
                       }
                       onConfirm={handleConfirmIncomePlan}
+                      onEdit={(selectedItem) => {
+                        setCreatePlanError(null);
+                        setEditingIncomePlan(selectedItem);
+                        setCreatePlanOpen(true);
+                      }}
+                      onDelete={handleDeleteIncomePlan}
                       onAdjust={(selectedItem) => {
                         setAdjustModalError(null);
                         setAdjustingPlan(selectedItem);
@@ -586,6 +745,25 @@ export default function Budget() {
           setAdjustModalError(null);
         }}
         onSubmit={handleAdjustIncomePlan}
+      />
+
+      <CreateIncomePlanModal
+        key={editingIncomePlan?.plan_id ? `edit-income-plan-${editingIncomePlan.plan_id}` : "create-income-plan"}
+        isOpen={createPlanOpen}
+        onClose={() => {
+          setCreatePlanOpen(false);
+          setCreatePlanError(null);
+          setEditingIncomePlan(null);
+        }}
+        onSubmit={handleSaveIncomePlan}
+        initialData={editingIncomePlan}
+        budgetYear={year}
+        budgetMonth={month}
+        loading={createPlanLoading}
+        error={createPlanError}
+        title={editingIncomePlan ? "Editar ingreso planificado" : "Crear ingreso planificado"}
+        subtitle={editingIncomePlan ? "Sueldo recurrente existente" : "Sueldo recurrente"}
+        submitLabel={editingIncomePlan ? "Guardar cambios" : "Crear plan"}
       />
 
       <MobilePrimaryAction to="/expenses/new" label="+ Añadir gasto" />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
+import AddCategoryModal from "./AddCategoryModal";
 
 const NAV_ITEMS = [
   { label: "Presupuesto", path: "/" },
@@ -17,6 +18,7 @@ export default function Navbar() {
   const { family, logout, profile, user } = useAuth();
   const { monthLabel } = useBudgetMonth();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   const isActive = (path) => location.pathname === path;
   const role = profile?.role || "member";
@@ -90,6 +92,14 @@ export default function Navbar() {
               </Link>
             ))}
           </nav>
+
+          <button
+            type="button"
+            onClick={() => setShowCategoryModal(true)}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
+          >
+            + Categoría
+          </button>
 
           <Link to={contextualAction.path} className={contextualAction.className}>
             {contextualAction.label}
@@ -185,6 +195,17 @@ export default function Navbar() {
 
             <button
               type="button"
+              onClick={() => {
+                setOpen(false);
+                setShowCategoryModal(true);
+              }}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-slate-200"
+            >
+              + Categoría rápida
+            </button>
+
+            <button
+              type="button"
               onClick={handleLogout}
               disabled={loggingOut}
               className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-slate-200 disabled:opacity-50"
@@ -194,6 +215,15 @@ export default function Navbar() {
           </div>
         </nav>
       )}
+
+      {showCategoryModal ? (
+        <AddCategoryModal
+          onClose={() => setShowCategoryModal(false)}
+          onCreated={() => {
+            setShowCategoryModal(false);
+          }}
+        />
+      ) : null}
     </header>
   );
 }
