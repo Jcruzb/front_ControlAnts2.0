@@ -59,37 +59,42 @@ export default function RecurringPaymentItem({
 
   return (
     <div
-      className={`rounded-xl border p-4 space-y-3 ${active ? "bg-white" : "bg-gray-50"
-        }`}
+      className={`rounded-[30px] border p-5 transition ${
+        active
+          ? "border-white/8 bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.18)]"
+          : "border-white/8 bg-white/[0.025] shadow-[0_18px_40px_rgba(0,0,0,0.14)]"
+      }`}
     >
       <div className="flex items-start justify-between">
-        {/* Left content */}
-        <div className={`flex items-start space-x-3 ${!active ? "opacity-60" : ""}`}>
-          <div className="text-2xl">
+        <div className={`flex min-w-0 items-start gap-4 ${!active ? "opacity-65" : ""}`}>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-xl">
             {categoryInfo?.icon || "💸"}
           </div>
 
-          <div>
-            <p className="font-medium text-gray-900">{name}</p>
-            <p className="text-sm text-gray-500">
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold tracking-tight text-white">
+              {name}
+            </p>
+            <p className="mt-1 text-sm text-slate-400">
               {categoryInfo?.name || "Sin categoría"}
             </p>
-            <p className="text-xs text-gray-400">
-              {end_date
-                ? `Hasta ${new Date(end_date).toLocaleDateString()}`
-                : "Sin fecha de fin"}
-            </p>
+            <div className="mt-2">
+              <span className="inline-flex rounded-full border border-white/8 bg-black/20 px-2.5 py-1 text-xs font-medium text-slate-400">
+                {end_date
+                  ? `Hasta ${new Date(end_date).toLocaleDateString()}`
+                  : "Sin fecha de fin"}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Right content */}
-        <div className="flex flex-col items-end space-y-1">
-          <p className="text-lg font-semibold text-gray-900">
+        <div className="ml-4 flex shrink-0 flex-col items-end gap-2">
+          <p className="text-xl font-semibold tracking-tight text-white">
             {Number(amount).toFixed(2)} €
           </p>
 
           {!active && (
-            <span className="text-xs rounded-full bg-gray-200 px-2 py-0.5">
+            <span className="rounded-full border border-amber-400/20 bg-amber-500/12 px-2.5 py-1 text-xs font-medium text-amber-200">
               Inactivo
             </span>
           )}
@@ -97,20 +102,20 @@ export default function RecurringPaymentItem({
           <div className="relative" ref={actionsRef}>
             <button
               onClick={() => setShowActions((v) => !v)}
-              className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xl leading-none text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
               aria-label="Abrir opciones"
             >
               ⋯
             </button>
 
             {showActions && (
-              <div className="absolute right-0 mt-2 w-32 rounded-lg border bg-white shadow-lg z-50">
+              <div className="absolute right-0 z-50 mt-2 w-36 overflow-hidden rounded-2xl border border-white/10 bg-[#11161d] shadow-[0_24px_50px_rgba(0,0,0,0.45)]">
                 <button
                   onClick={() => {
                     setShowActions(false);
                     onEdit(item);
                   }}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+                  className="w-full px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/[0.06]"
                 >
                   Editar
                 </button>
@@ -121,7 +126,7 @@ export default function RecurringPaymentItem({
                       setShowActions(false);
                       onDeactivate(item.id);
                     }}
-                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                    className="w-full px-4 py-3 text-left text-sm text-red-300 transition hover:bg-red-500/10"
                   >
                     Desactivar
                   </button>
@@ -131,7 +136,7 @@ export default function RecurringPaymentItem({
                       setShowActions(false);
                       onReactivate(item.id);
                     }}
-                    className="w-full px-3 py-2 text-left text-sm text-green-600 hover:bg-green-50"
+                    className="w-full px-4 py-3 text-left text-sm text-emerald-300 transition hover:bg-emerald-500/10"
                   >
                     Reactivar
                   </button>

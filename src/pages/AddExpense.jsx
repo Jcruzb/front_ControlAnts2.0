@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../services/api";
+import api, { getApiErrorMessage } from "../services/api";
+import { getCategories } from "../services/categories";
+import { getTodayLocalDate } from "../utils/date";
 import AddCategoryModal from "../components/AddCategoryModal";
 
 const AddExpense = () => {
@@ -9,22 +11,28 @@ const AddExpense = () => {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
-  const [date, setDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [date, setDate] = useState(getTodayLocalDate);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoriesError, setCategoriesError] = useState(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
 
   useEffect(() => {
     const loadCategories = async () => {
+      setLoadingCategories(true);
+      setCategoriesError(null);
       try {
-        const data = await api.get("/categories/");
+        const data = await getCategories();
         setCategories(data);
+      } catch (loadError) {
+        console.error(loadError);
+        setCategoriesError(
+          getApiErrorMessage(loadError, "No se pudieron cargar las categorías")
+        );
       } finally {
         setLoadingCategories(false);
       }
@@ -40,7 +48,7 @@ const AddExpense = () => {
       setError("El importe debe ser mayor que 0");
       return;
     }
-    if (!category.trim && typeof category === "string" ? category.trim() === "" : !category) {
+    if (!String(category).trim()) {
       setError("La categoría es obligatoria");
       return;
     }
@@ -60,30 +68,30 @@ const AddExpense = () => {
       navigate("/expenses");
     } catch (err) {
       console.error(err);
-      setError("No se pudo guardar el gasto");
+      setError(getApiErrorMessage(err, "No se pudo guardar el gasto"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <section className="max-w-xl mx-auto space-y-6">
-      {/* Header */}
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Añadir gasto</h1>
-        <p className="text-sm text-gray-500">
+    <section className="mx-auto max-w-2xl space-y-6">
+      <header className="space-y-2">
+        <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">
+          Nuevo gasto
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-white">Añadir gasto</h1>
+        <p className="text-sm text-slate-400">
           Apunta un gasto que ya has realizado
         </p>
       </header>
 
-      {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 rounded-2xl bg-white p-6 border shadow-sm"
+        className="space-y-6 rounded-[36px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)] backdrop-blur-sm sm:p-8"
       >
-        {/* Amount (primary) */}
         <div className="space-y-2">
-          <span className="text-sm text-gray-500">Importe</span>
+          <span className="text-sm text-slate-400">Importe</span>
           <div className="relative">
             <input
               type="number"
@@ -91,35 +99,59 @@ const AddExpense = () => {
               placeholder="0,00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full rounded-xl border px-4 py-4 text-2xl font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-[28px] border border-white/10 bg-black/20 px-5 py-5 text-3xl font-semibold tracking-tight text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
               required
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">€</span>
+            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-xl text-slate-500">€</span>
           </div>
         </div>
 
-        {/* Description */}
         <div>
           <input
             type="text"
             placeholder="¿En qué fue el gasto? (Supermercado, Netflix…) "
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded-lg border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
           />
         </div>
 
-        {/* Category */}
         <div className="space-y-1">
-          <span className="text-sm text-gray-500">Categoría</span>
+          <span className="text-sm text-slate-400">Categoría</span>
 
           {loadingCategories ? (
-            <p className="text-sm text-gray-400">Cargando categorías…</p>
+            <p className="text-sm text-slate-500">Cargando categorías…</p>
+          ) : categoriesError ? (
+            <div className="space-y-3 rounded-[24px] border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-200">
+              <p>{categoriesError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoriesError(null);
+                  setLoadingCategories(true);
+                  getCategories()
+                    .then((data) => setCategories(data))
+                    .catch((loadError) => {
+                      console.error(loadError);
+                      setCategoriesError(
+                        getApiErrorMessage(
+                          loadError,
+                          "No se pudieron cargar las categorías"
+                        )
+                      );
+                    })
+                    .finally(() => setLoadingCategories(false));
+                }}
+                className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white transition hover:bg-white/[0.1]"
+              >
+                Reintentar
+              </button>
+            </div>
           ) : categories.length === 0 ? (
             <button
               type="button"
               onClick={() => setShowCategoryModal(true)}
-              className="w-full rounded-lg border border-dashed py-3 text-sm text-blue-600 hover:bg-blue-50"
+              className="w-full rounded-[24px] border border-dashed border-white/12 bg-black/20 py-3 text-sm text-blue-200 transition hover:bg-white/[0.03]"
             >
               ➕ Crear primera categoría
             </button>
@@ -134,7 +166,7 @@ const AddExpense = () => {
                 }
               }}
               required
-              className="w-full rounded-lg border px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition focus:border-blue-400/50"
             >
               <option value="">Selecciona una categoría</option>
               {categories.map((cat) => (
@@ -147,31 +179,28 @@ const AddExpense = () => {
           )}
         </div>
 
-        {/* Date */}
         <div className="space-y-1">
-          <span className="text-sm text-gray-500">Fecha</span>
+          <span className="text-sm text-slate-400">Fecha</span>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-lg border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition focus:border-blue-400/50"
           />
         </div>
 
 
-        {/* Error */}
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-[24px] border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">
             {error}
           </div>
         )}
 
-        {/* Actions */}
         <div className="space-y-3 pt-2">
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 py-3 text-white text-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-[24px] bg-blue-500 py-3 text-lg font-semibold text-white transition hover:bg-blue-400 disabled:opacity-50"
           >
             {loading ? "Guardando…" : "Guardar gasto"}
           </button>
@@ -179,7 +208,7 @@ const AddExpense = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="w-full text-sm text-gray-500 hover:text-gray-700"
+            className="w-full text-sm text-slate-400 transition hover:text-slate-200"
           >
             Cancelar
           </button>

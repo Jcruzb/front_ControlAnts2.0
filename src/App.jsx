@@ -1,20 +1,15 @@
-import { useEffect } from 'react';
 import Router from './app/Router'
-import { initCSRF } from "./services/api";
-
+import { BudgetMonthProvider } from "./context/BudgetMonthProvider";
+import { AuthProvider } from "./context/AuthContext";
 
 function App() {
-  useEffect(() => {
-    (async () => {
-      try {
-        await initCSRF();
-        console.log("CSRF cookie initialized ✅");
-      } catch (e) {
-        console.log("CSRF init failed ❌", e);
-      }
-    })();
-  }, []);
-  return <Router />
+  return (
+    <AuthProvider>
+      <BudgetMonthProvider>
+        <Router />
+      </BudgetMonthProvider>
+    </AuthProvider>
+  )
 }
 
 export default App
