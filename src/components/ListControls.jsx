@@ -7,6 +7,10 @@ export default function ListControls({
   sortValue,
   onSortChange,
   sortOptions = [],
+  extraSelectValue,
+  onExtraSelectChange,
+  extraSelectOptions = [],
+  extraSelectLabel = "Filtro",
   filterValue = "all",
   onFilterChange,
   filterOptions = [],
@@ -57,7 +61,13 @@ export default function ListControls({
 
         {expanded ? (
           <>
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+            <div
+              className={`grid gap-3 lg:items-center ${
+                extraSelectOptions.length > 0
+                  ? "lg:grid-cols-[minmax(0,1fr)_220px_220px]"
+                  : "lg:grid-cols-[minmax(0,1fr)_220px]"
+              }`}
+            >
               <label className="block">
                 <span className="sr-only">Buscar</span>
                 <input
@@ -83,6 +93,23 @@ export default function ListControls({
                   ))}
                 </select>
               </label>
+
+              {extraSelectOptions.length > 0 ? (
+                <label className="block">
+                  <span className="sr-only">{extraSelectLabel}</span>
+                  <select
+                    value={extraSelectValue}
+                    onChange={(event) => onExtraSelectChange?.(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400/50"
+                  >
+                    {extraSelectOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </div>
 
             {filterOptions.length > 0 ? (

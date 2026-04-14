@@ -6,6 +6,7 @@ export default function BudgetItem({
   item,
   icon = "💸",
   onQuickAddSubmit,
+  onQuickPayTotal,
   budgetYear,
   budgetMonth,
 }) {
@@ -85,14 +86,27 @@ export default function BudgetItem({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsQuickAddOpen(true)}
-            className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98]"
-            aria-label={`Añadir gasto a ${title}`}
-          >
-            + gasto
-          </button>
+          <div className="flex shrink-0 flex-col gap-2">
+            {typeof onQuickPayTotal === "function" && (
+              <button
+                type="button"
+                onClick={() => onQuickPayTotal(item, type)}
+                className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20 active:scale-[0.98]"
+                aria-label={`Pagar total de ${title}`}
+              >
+                Pagar total
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsQuickAddOpen(true)}
+              className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98]"
+              aria-label={`Añadir gasto a ${title}`}
+            >
+              + gasto
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">

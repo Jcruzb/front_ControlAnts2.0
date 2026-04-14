@@ -11,6 +11,7 @@ import api, {
 } from "../services/api";
 import QuickAddIncome from "../components/QuickAddIncome";
 import MobilePrimaryAction from "../components/MobilePrimaryAction";
+import ListControls from "../components/ListControls";
 import {
   createIncomePlan,
   adjustIncomePlan,
@@ -19,6 +20,105 @@ import {
   updateIncomePlan,
   getIncomePlansMonth,
 } from "../services/incomePlans";
+import { getTodayLocalDate } from "../utils/date";
+
+function getBudgetItemLabel(item, type) {
+  if (type === "planned") {
+    return String(item?.category || "Sin categoría");
+  }
+
+  return String(item?.name || item?.category || "Sin categoría");
+}
+
+function getBudgetItemSearchText(item, type) {
+  return [
+    getBudgetItemLabel(item, type),
+    item?.status,
+    item?.category_detail?.name,
+    item?.category_detail?.icon,
+    item?.planned_amount,
+    item?.spent_amount,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function getBudgetItemCategoryName(item) {
+  if (typeof item?.category_detail?.name === "string") {
+    return item.category_detail.name;
+  }
+
+  if (typeof item?.category_name === "string") {
+    return item.category_name;
+  }
+
+  if (typeof item?.category === "string") {
+    return item.category;
+  }
+
+  return "Sin categoría";
+}
+
+function getBudgetItemCategoryValue(item) {
+  if (item?.category_detail?.id != null) {
+    return String(item.category_detail.id);
+  }
+
+  if (item?.category_id != null) {
+    return String(item.category_id);
+  }
+
+  if (typeof item?.category === "number" || typeof item?.category === "string") {
+    return String(item.category);
+  }
+
+  return getBudgetItemCategoryName(item).toLowerCase();
+}
+
+function getBudgetPaymentState(item) {
+  const planned = Number(item?.planned_amount || 0);
+  const spent = Number(item?.spent_amount || 0);
+
+  if (spent <= 0) return "unpaid";
+  if (planned > 0 && spent >= planned) return "paid";
+  return "partial";
+}
+
+function getBudgetPaymentStateLabel(state) {
+  switch (state) {
+    case "unpaid":
+      return "Sin pagar";
+    case "partial":
+      return "En pago";
+    case "paid":
+      return "Pagado";
+    default:
+      return "Todos";
+  }
+}
+
+function getBudgetPaymentStateRank(state) {
+  switch (state) {
+    case "unpaid":
+      return 0;
+    case "partial":
+      return 1;
+    case "paid":
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+const EMPTY_BUDGET = {
+  status: "ok",
+  remaining_amount: 0,
+  total_planned: 0,
+  planned: [],
+  recurring: [],
+  unplanned_total: 0,
+};
 
 export default function Budget() {
   const {
@@ -52,6 +152,11 @@ export default function Budget() {
   const [createPlanError, setCreatePlanError] = useState(null);
   const [createPlanLoading, setCreatePlanLoading] = useState(false);
   const [editingIncomePlan, setEditingIncomePlan] = useState(null);
+  const [budgetSearch, setBudgetSearch] = useState("");
+  const [budgetSort, setBudgetSort] = useState("payment_asc");
+  const [budgetFilter, setBudgetFilter] = useState("all");
+  const [budgetCategoryFilter, setBudgetCategoryFilter] = useState("all");
+  const [budgetView, setBudgetView] = useState("expenses");
 
   const getIncomeCategoryName = useCallback((income) => {
     if (typeof income?.category_detail?.name === "string") {
@@ -164,6 +269,42 @@ export default function Budget() {
     await fetchBudget();
   }
 
+  function getDefaultExpenseDateForCurrentBudget() {
+    const now = new Date();
+    const isCurrentBudgetMonth =
+      now.getFullYear() === year && now.getMonth() + 1 === month;
+
+    if (isCurrentBudgetMonth) {
+      return getTodayLocalDate();
+    }
+
+    const lastDay = new Date(year, month, 0).getDate();
+    return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  }
+
+  async function handleQuickPayPlannedExpense(item, type) {
+    if (!item) return;
+
+    const label = getBudgetItemLabel(item, type);
+
+    const confirmMessage = `¿Registrar el pago total de "${label}" por ${Number(
+      item.planned_amount || 0
+    ).toFixed(2)} €?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    await handleQuickAddSubmit({
+      amount: Number(item.planned_amount || 0),
+      date: getDefaultExpenseDateForCurrentBudget(),
+      note: `Pago total de ${label}`,
+      categoryId: item.category,
+      plannedExpenseId: type === "planned" ? item.id : null,
+      recurringPaymentId: type === "recurring" ? item.id : null,
+    });
+  }
+
   const totalIncome = useMemo(() => {
     return incomes.reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
   }, [incomes]);
@@ -205,6 +346,166 @@ export default function Budget() {
   const totalIncomeWithRecurring = totalIncome + plannedRecurringIncome;
   const net = totalIncomeWithRecurring - totalSpent;
   const selectedMonthId = data?.month_id ?? data?.income_plan_month?.month_id ?? null;
+  const budgetData = data ?? EMPTY_BUDGET;
+  const {
+    status,
+    remaining_amount,
+    total_planned,
+    planned,
+    recurring,
+    unplanned_total,
+  } = budgetData;
+
+  const budgetCategoryOptions = useMemo(() => {
+    const categoryMap = new Map();
+
+    planned.forEach((item) => {
+      const value = getBudgetItemCategoryValue(item);
+      const label = getBudgetItemCategoryName(item);
+
+      if (!categoryMap.has(value)) {
+        categoryMap.set(value, label);
+      }
+    });
+
+    recurring.forEach((item) => {
+      const value = getBudgetItemCategoryValue(item);
+      const label = getBudgetItemCategoryName(item);
+
+      if (!categoryMap.has(value)) {
+        categoryMap.set(value, label);
+      }
+    });
+
+    return [
+      { value: "all", label: "Todas las categorias" },
+      ...Array.from(categoryMap.entries())
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, "es")),
+    ];
+  }, [planned, recurring]);
+
+  const filteredPlanned = useMemo(() => {
+    const normalizedSearch = budgetSearch.trim().toLowerCase();
+
+    return [...planned]
+      .filter((item) => {
+        const paymentState = getBudgetPaymentState(item);
+        const matchesFilter =
+          budgetFilter === "all" || budgetFilter === paymentState;
+        const matchesCategory =
+          budgetCategoryFilter === "all" ||
+          getBudgetItemCategoryValue(item) === budgetCategoryFilter;
+        const matchesSearch =
+          normalizedSearch.length === 0 ||
+          getBudgetItemSearchText(item, "planned").includes(normalizedSearch);
+
+        return matchesFilter && matchesCategory && matchesSearch;
+      })
+      .sort((a, b) => {
+        const aState = getBudgetPaymentState(a);
+        const bState = getBudgetPaymentState(b);
+
+        switch (budgetSort) {
+          case "amount_asc":
+            return Number(a.planned_amount || 0) - Number(b.planned_amount || 0);
+          case "amount_desc":
+            return Number(b.planned_amount || 0) - Number(a.planned_amount || 0);
+          case "name_asc":
+            return getBudgetItemLabel(a, "planned").localeCompare(
+              getBudgetItemLabel(b, "planned"),
+              "es"
+            );
+          case "name_desc":
+            return getBudgetItemLabel(b, "planned").localeCompare(
+              getBudgetItemLabel(a, "planned"),
+              "es"
+            );
+          case "payment_desc":
+            return (
+              getBudgetPaymentStateRank(bState) - getBudgetPaymentStateRank(aState) ||
+              getBudgetItemLabel(a, "planned").localeCompare(
+                getBudgetItemLabel(b, "planned"),
+                "es"
+              )
+            );
+          case "payment_asc":
+          default:
+            return (
+              getBudgetPaymentStateRank(aState) - getBudgetPaymentStateRank(bState) ||
+              getBudgetItemLabel(a, "planned").localeCompare(
+                getBudgetItemLabel(b, "planned"),
+                "es"
+              )
+            );
+        }
+      });
+  }, [budgetCategoryFilter, budgetFilter, budgetSearch, budgetSort, planned]);
+
+  const filteredRecurring = useMemo(() => {
+    const normalizedSearch = budgetSearch.trim().toLowerCase();
+
+    return [...recurring]
+      .filter((item) => {
+        const paymentState = getBudgetPaymentState(item);
+        const matchesFilter =
+          budgetFilter === "all" || budgetFilter === paymentState;
+        const matchesCategory =
+          budgetCategoryFilter === "all" ||
+          getBudgetItemCategoryValue(item) === budgetCategoryFilter;
+        const matchesSearch =
+          normalizedSearch.length === 0 ||
+          getBudgetItemSearchText(item, "recurring").includes(normalizedSearch);
+
+        return matchesFilter && matchesCategory && matchesSearch;
+      })
+      .sort((a, b) => {
+        const aState = getBudgetPaymentState(a);
+        const bState = getBudgetPaymentState(b);
+
+        switch (budgetSort) {
+          case "amount_asc":
+            return Number(a.planned_amount || 0) - Number(b.planned_amount || 0);
+          case "amount_desc":
+            return Number(b.planned_amount || 0) - Number(a.planned_amount || 0);
+          case "name_asc":
+            return getBudgetItemLabel(a, "recurring").localeCompare(
+              getBudgetItemLabel(b, "recurring"),
+              "es"
+            );
+          case "name_desc":
+            return getBudgetItemLabel(b, "recurring").localeCompare(
+              getBudgetItemLabel(a, "recurring"),
+              "es"
+            );
+          case "payment_desc":
+            return (
+              getBudgetPaymentStateRank(bState) - getBudgetPaymentStateRank(aState) ||
+              getBudgetItemLabel(a, "recurring").localeCompare(
+                getBudgetItemLabel(b, "recurring"),
+                "es"
+              )
+            );
+          case "payment_asc":
+          default:
+            return (
+              getBudgetPaymentStateRank(aState) - getBudgetPaymentStateRank(bState) ||
+              getBudgetItemLabel(a, "recurring").localeCompare(
+                getBudgetItemLabel(b, "recurring"),
+                "es"
+              )
+            );
+        }
+      });
+  }, [budgetCategoryFilter, budgetFilter, budgetSearch, budgetSort, recurring]);
+
+  const visibleBudgetItems = filteredPlanned.length + filteredRecurring.length;
+  const totalBudgetItems = planned.length + recurring.length;
+  const hasActiveBudgetFilters =
+    budgetSearch.trim().length > 0 ||
+    budgetSort !== "payment_asc" ||
+    budgetFilter !== "all" ||
+    budgetCategoryFilter !== "all";
 
   if (loading) {
     return (
@@ -221,15 +522,6 @@ export default function Budget() {
       </div>
     );
   }
-
-  const {
-    status,
-    remaining_amount,
-    total_planned,
-    planned = [],
-    recurring = [],
-    unplanned_total,
-  } = data;
 
   async function refreshIncomeArea() {
     await Promise.all([fetchBudget(), fetchIncomes(), fetchIncomePlanMonth()]);
@@ -484,9 +776,86 @@ export default function Budget() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">
+      <section className="rounded-[30px] border border-white/8 bg-white/[0.04] p-3 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setBudgetView("expenses")}
+            className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+              budgetView === "expenses"
+                ? "bg-emerald-400 text-slate-950"
+                : "border border-white/10 bg-black/20 text-slate-200 hover:bg-white/[0.06]"
+            }`}
+          >
+            Gastos
+          </button>
+          <button
+            type="button"
+            onClick={() => setBudgetView("incomes")}
+            className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+              budgetView === "incomes"
+                ? "bg-emerald-400 text-slate-950"
+                : "border border-white/10 bg-black/20 text-slate-200 hover:bg-white/[0.06]"
+            }`}
+          >
+            Ingresos
+          </button>
+        </div>
+      </section>
+
+      <section
+        className={`grid gap-6 ${
+          budgetView === "incomes"
+            ? "xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]"
+            : ""
+        }`}
+      >
         <div className="space-y-6">
-          <section className="rounded-[32px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
+          {budgetView === "expenses" ? (
+            <ListControls
+              searchValue={budgetSearch}
+              onSearchChange={setBudgetSearch}
+              searchPlaceholder="Buscar por categoría o nombre"
+              sortValue={budgetSort}
+              onSortChange={setBudgetSort}
+              sortOptions={[
+                { value: "payment_asc", label: "Pago: pendiente primero" },
+                { value: "payment_desc", label: "Pago: pagado primero" },
+                { value: "amount_desc", label: "Importe: mayor a menor" },
+                { value: "amount_asc", label: "Importe: menor a mayor" },
+                { value: "name_asc", label: "Nombre: A-Z" },
+                { value: "name_desc", label: "Nombre: Z-A" },
+              ]}
+              filterValue={budgetFilter}
+              onFilterChange={setBudgetFilter}
+              filterOptions={[
+                { value: "all", label: "Todos" },
+                { value: "unpaid", label: getBudgetPaymentStateLabel("unpaid") },
+                { value: "partial", label: getBudgetPaymentStateLabel("partial") },
+                { value: "paid", label: getBudgetPaymentStateLabel("paid") },
+              ]}
+              extraSelectValue={budgetCategoryFilter}
+              onExtraSelectChange={setBudgetCategoryFilter}
+              extraSelectLabel="Categoria"
+              extraSelectOptions={budgetCategoryOptions}
+              resultsCount={visibleBudgetItems}
+              totalCount={totalBudgetItems}
+              hasActiveFilters={hasActiveBudgetFilters}
+              onClearFilters={() => {
+                setBudgetSearch("");
+                setBudgetSort("payment_asc");
+                setBudgetFilter("all");
+                setBudgetCategoryFilter("all");
+              }}
+              defaultExpanded
+            />
+          ) : null}
+
+          <section
+            className={`rounded-[32px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.22)] ${
+              budgetView === "incomes" ? "" : "hidden"
+            }`}
+          >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
@@ -585,7 +954,11 @@ export default function Budget() {
             </div>
           </section>
 
-          <section className="space-y-3">
+          <section
+            className={`space-y-3 ${
+              budgetView === "expenses" ? "" : "hidden"
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
@@ -596,24 +969,29 @@ export default function Budget() {
                 </h2>
               </div>
             </div>
-            {planned.length > 0 && (
+            {filteredPlanned.length > 0 ? (
               <div className="space-y-3">
-                {planned.map((item) => (
+                {filteredPlanned.map((item) => (
                   <BudgetItem
                     key={`planned-${item.id}`}
                     type="planned"
                     item={item}
                     icon="🛒"
                     onQuickAddSubmit={handleQuickAddSubmit}
+                    onQuickPayTotal={handleQuickPayPlannedExpense}
                     budgetYear={year}
                     budgetMonth={month}
                   />
                 ))}
               </div>
+            ) : (
+              <div className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
+                No hay partidas planificadas con estos filtros.
+              </div>
             )}
           </section>
 
-          {recurring.length > 0 && (
+          {recurring.length > 0 && budgetView === "expenses" ? (
             <section className="space-y-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
@@ -624,23 +1002,30 @@ export default function Budget() {
                 </h2>
               </div>
               <div className="space-y-3">
-                {recurring.map((item) => (
-                  <BudgetItem
-                    key={`recurring-${item.id}`}
-                    type="recurring"
-                    item={item}
-                    icon="🔁"
-                    onQuickAddSubmit={handleQuickAddSubmit}
-                    budgetYear={year}
-                    budgetMonth={month}
-                  />
-                ))}
+                {filteredRecurring.length > 0 ? (
+                  filteredRecurring.map((item) => (
+                    <BudgetItem
+                      key={`recurring-${item.id}`}
+                      type="recurring"
+                      item={item}
+                      icon="🔁"
+                      onQuickAddSubmit={handleQuickAddSubmit}
+                      onQuickPayTotal={handleQuickPayPlannedExpense}
+                      budgetYear={year}
+                      budgetMonth={month}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
+                    No hay gastos fijos con estos filtros.
+                  </div>
+                )}
               </div>
             </section>
-          )}
+          ) : null}
         </div>
 
-        <div className="space-y-6">
+        <div className={budgetView === "incomes" ? "space-y-6" : "hidden"}>
           <section className="rounded-[32px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
             <div className="flex items-center justify-between">
               <div>
