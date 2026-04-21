@@ -15,15 +15,15 @@ export default function MonthNavigation({
     <div
       className={
         compact
-          ? "grid w-full gap-3 sm:w-auto sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-          : "grid w-full max-w-[760px] justify-items-center gap-3"
+          ? "grid w-full min-w-0 gap-3 sm:w-auto sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+          : "grid w-full min-w-0 max-w-[760px] gap-3"
       }
     >
       <div
         className={
           compact
-            ? "grid grid-cols-3 items-center gap-2 sm:col-span-2"
-            : "grid w-full grid-cols-[56px_minmax(120px,1fr)_56px] items-center gap-3"
+            ? "grid min-w-0 grid-cols-3 items-center gap-2 sm:col-span-2"
+            : "grid w-full min-w-0 grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 sm:grid-cols-[56px_minmax(0,1fr)_56px] sm:gap-3"
         }
       >
         <button
@@ -38,7 +38,7 @@ export default function MonthNavigation({
         <button
           type="button"
           onClick={resetToCurrentMonth}
-          className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-5 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.09]"
+          className="inline-flex h-12 w-full min-w-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-3 text-center text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.09] sm:px-5"
         >
           Hoy
         </button>
@@ -56,12 +56,12 @@ export default function MonthNavigation({
       <div
         className={
           compact
-            ? "grid grid-cols-2 gap-3 sm:col-span-2"
-            : "grid w-full grid-cols-2 gap-3"
+            ? "grid min-w-0 grid-cols-2 gap-3 sm:col-span-2"
+            : "grid w-full min-w-0 grid-cols-2 gap-3"
         }
       >
         <select
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-100"
+          className="w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-3 text-sm text-slate-100 sm:px-4"
           value={month}
           onChange={(event) => setMonth(Number(event.target.value))}
         >
@@ -73,7 +73,7 @@ export default function MonthNavigation({
         </select>
 
         <select
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-100"
+          className="w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-3 text-sm text-slate-100 sm:px-4"
           value={year}
           onChange={(event) => setYear(Number(event.target.value))}
         >

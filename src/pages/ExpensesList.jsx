@@ -342,7 +342,7 @@ const ExpensesList = () => {
 
   return (
     <section className="space-y-8">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="flex min-w-0 flex-col gap-4">
         <div className="space-y-2">
           <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">
             Gastos
@@ -355,29 +355,7 @@ const ExpensesList = () => {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={downloadExistingExpenses}
-            disabled={expenses.length === 0}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Exportar existentes
-          </button>
-          <button
-            type="button"
-            onClick={downloadExpenseTemplate}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08]"
-          >
-            Descargar plantilla
-          </button>
-          <button
-            type="button"
-            onClick={() => setBulkImportOpen(true)}
-            className="rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400"
-          >
-            Importar Excel
-          </button>
+        <div className="w-full min-w-0">
           <MonthNavigation
             year={year}
             month={month}
@@ -389,6 +367,30 @@ const ExpensesList = () => {
             resetToCurrentMonth={resetToCurrentMonth}
             currentYear={currentYear}
           />
+        </div>
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <button
+            type="button"
+            onClick={downloadExistingExpenses}
+            disabled={expenses.length === 0}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            Exportar existentes
+          </button>
+          <button
+            type="button"
+            onClick={downloadExpenseTemplate}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08] sm:w-auto"
+          >
+            Descargar plantilla
+          </button>
+          <button
+            type="button"
+            onClick={() => setBulkImportOpen(true)}
+            className="w-full rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400 sm:w-auto"
+          >
+            Importar Excel
+          </button>
         </div>
       </header>
 
@@ -456,9 +458,9 @@ const ExpensesList = () => {
         {filteredExpenses.map((expense) => (
           <div
             key={expense.id}
-            className="flex items-center justify-between gap-4 rounded-[30px] border border-white/8 bg-white/[0.04] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)]"
+            className="flex min-w-0 flex-col gap-3 rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:flex-row sm:items-center sm:justify-between sm:p-5"
           >
-            <div className="flex-1 space-y-1">
+            <div className="min-w-0 flex-1 space-y-1">
               <p className="truncate font-medium text-white">
                 {expense.is_recurring === true && <span className="mr-1 text-slate-500">🔁</span>}
                 {expense.description || "Gasto"}
@@ -471,7 +473,7 @@ const ExpensesList = () => {
               </p>
             </div>
 
-            <div className="text-right shrink-0">
+            <div className="shrink-0 text-left sm:text-right">
               <p className="text-lg font-semibold text-red-300">
                 − {Number(expense.amount).toFixed(2)} €
               </p>

@@ -67,8 +67,8 @@ function IncomeCard({ income, categoryColor, onEdit, onDelete }) {
   }, [showActions]);
 
   return (
-    <article className="flex flex-col gap-4 rounded-[30px] border border-white/8 bg-white/[0.04] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)] md:flex-row md:items-center md:justify-between">
-      <div className="flex items-center gap-4">
+    <article className="flex min-w-0 flex-col gap-4 rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] md:flex-row md:items-center md:justify-between md:p-5">
+      <div className="flex min-w-0 items-center gap-4">
         <div
           className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-bold text-white"
           style={{ backgroundColor: categoryColor }}
@@ -76,9 +76,9 @@ function IncomeCard({ income, categoryColor, onEdit, onDelete }) {
           {getIncomeIconLabel(income)}
         </div>
 
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="min-w-0 truncate text-base font-semibold text-white">
               {getIncomeCategoryName(income)}
             </h2>
             <span
@@ -92,20 +92,20 @@ function IncomeCard({ income, categoryColor, onEdit, onDelete }) {
             </span>
           </div>
 
-          <p className="text-sm text-slate-400">
+          <p className="break-words text-sm text-slate-400">
             {income.description || "Sin descripción"}
           </p>
         </div>
       </div>
 
-      <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
-        <div className="flex items-start gap-3">
-          <div className="text-right">
+      <div className="flex w-full shrink-0 flex-col gap-2 md:ml-auto md:w-auto md:items-end">
+        <div className="flex items-start justify-between gap-3 md:justify-start">
+          <div className="min-w-0 text-left md:text-right">
             <p className="text-xl font-semibold text-emerald-300">
               + {Number(income.amount).toFixed(2)} €
             </p>
             {income.created_at && (
-              <p className="text-xs text-slate-500">
+              <p className="break-words text-xs text-slate-500">
                 Creado: {new Date(income.created_at).toLocaleString("es-ES")}
               </p>
             )}
@@ -461,7 +461,7 @@ export default function IncomesList() {
 
   return (
     <section className="space-y-8">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="flex min-w-0 flex-col gap-4">
         <div className="space-y-2">
           <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">
             Ingresos
@@ -472,29 +472,7 @@ export default function IncomesList() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={downloadExistingIncomes}
-            disabled={incomes.length === 0}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Exportar existentes
-          </button>
-          <button
-            type="button"
-            onClick={downloadIncomeTemplate}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08]"
-          >
-            Descargar plantilla
-          </button>
-          <button
-            type="button"
-            onClick={() => setBulkImportOpen(true)}
-            className="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-          >
-            Importar Excel
-          </button>
+        <div className="w-full min-w-0">
           <MonthNavigation
             year={year}
             month={month}
@@ -507,11 +485,35 @@ export default function IncomesList() {
             currentYear={currentYear}
             compact
           />
-
+        </div>
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <button
+            type="button"
+            onClick={downloadExistingIncomes}
+            disabled={incomes.length === 0}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            Exportar existentes
+          </button>
+          <button
+            type="button"
+            onClick={downloadIncomeTemplate}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08] sm:w-auto"
+          >
+            Descargar plantilla
+          </button>
+          <button
+            type="button"
+            onClick={() => setBulkImportOpen(true)}
+            className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 sm:w-auto"
+          >
+            Importar Excel
+          </button>
           <QuickAddIncome
             year={year}
             month={month}
             onCreated={fetchIncomes}
+            buttonClassName="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] sm:w-auto"
           />
         </div>
       </header>

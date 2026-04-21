@@ -8,7 +8,7 @@ export default function MobilePrimaryAction({
     <>
       <div className="h-20 md:hidden" aria-hidden="true" />
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 md:hidden">
-        <div className="mx-auto flex max-w-[1600px] justify-end px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6">
+        <div className="mx-auto flex w-full max-w-[1600px] justify-end px-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] pb-[calc(var(--safe-bottom)+1rem)] sm:px-[max(1.5rem,var(--safe-left))] sm:pr-[max(1.5rem,var(--safe-right))]">
           <Link
             to={to}
             aria-label={label}

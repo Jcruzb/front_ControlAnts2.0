@@ -1027,8 +1027,8 @@ export default function Budget() {
 
         <div className={budgetView === "incomes" ? "space-y-6" : "hidden"}>
           <section className="rounded-[32px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
                   Sueldos planificados
                 </p>
@@ -1039,22 +1039,24 @@ export default function Budget() {
                   Confirma o ajusta los ingresos recurrentes del mes.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setCreatePlanError(null);
-                  setEditingIncomePlan(null);
-                  setCreatePlanOpen(true);
-                }}
-                className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
-              >
-                + Crear sueldo recurrente
-              </button>
-              {normalizedIncomePlanMonth.isClosed && (
-                <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-medium text-slate-300">
-                  Mes cerrado
-                </span>
-              )}
+              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatePlanError(null);
+                    setEditingIncomePlan(null);
+                    setCreatePlanOpen(true);
+                  }}
+                  className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 sm:w-auto"
+                >
+                  + Crear sueldo recurrente
+                </button>
+                {normalizedIncomePlanMonth.isClosed && (
+                  <span className="self-start rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-medium text-slate-300 sm:self-auto">
+                    Mes cerrado
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="mt-5 space-y-3">

@@ -23,7 +23,7 @@ export default function ListControls({
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
-    <section className="rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-5">
+    <section className="w-full min-w-0 max-w-full overflow-hidden rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-black/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -38,7 +38,7 @@ export default function ListControls({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {hasActiveFilters ? (
               <button
                 type="button"
@@ -113,7 +113,7 @@ export default function ListControls({
             </div>
 
             {filterOptions.length > 0 ? (
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
                 {filterOptions.map((option) => {
                   const active = option.value === filterValue;
 

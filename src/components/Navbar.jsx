@@ -55,15 +55,15 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50">
-      <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-10">
-        <div className="flex items-center gap-3">
+    <div className="w-full">
+      <div className="mx-auto flex h-20 w-full min-w-0 max-w-[1600px] items-center justify-between px-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] sm:px-[max(1.5rem,var(--safe-left))] sm:pr-[max(1.5rem,var(--safe-right))] lg:px-[max(2rem,var(--safe-left))] lg:pr-[max(2rem,var(--safe-right))] xl:px-[max(2.5rem,var(--safe-left))] xl:pr-[max(2.5rem,var(--safe-right))]">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-[20px] border border-white/10 bg-[linear-gradient(135deg,rgba(37,99,235,0.9),rgba(59,130,246,0.45))] text-sm font-bold text-white shadow-[0_12px_30px_rgba(37,99,235,0.35)]">
             {initials}
           </div>
-          <div className="flex flex-col">
-            <div className="text-xl font-semibold tracking-tight text-white">ControlAnts</div>
-            <div className="text-sm text-slate-400">
+          <div className="flex min-w-0 flex-col">
+            <div className="truncate text-xl font-semibold tracking-tight text-white">ControlAnts</div>
+            <div className="truncate text-sm text-slate-400">
               Hola, <span className="font-medium text-slate-100">{userName}</span>
               {" · "}
               <span className="font-medium text-slate-200">{familyName}</span>
@@ -146,17 +146,17 @@ export default function Navbar() {
       {open && (
         <nav
           aria-label="Mobile navigation"
-          className="border-t border-white/8 bg-[rgba(10,12,17,0.96)] shadow-[0_24px_50px_rgba(0,0,0,0.35)] md:hidden"
+          className="w-full border-t border-white/8 bg-[rgba(10,12,17,0.96)] shadow-[0_24px_50px_rgba(0,0,0,0.35)] md:hidden"
         >
-          <div className="flex flex-col gap-4 px-5 py-5 font-medium text-slate-200">
+          <div className="flex w-full min-w-0 flex-col gap-4 px-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] py-5 font-medium text-slate-200">
             <div className="rounded-[28px] border border-white/8 bg-white/[0.04] px-4 py-4 text-sm">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(37,99,235,0.95),rgba(59,130,246,0.5))] text-sm font-bold text-white">
                   {initials}
                 </div>
-                <div>
-                  <p className="font-semibold text-white">{userName}</p>
-                  <p className="text-slate-400">{userEmail}</p>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-white">{userName}</p>
+                  <p className="truncate text-slate-400">{userEmail}</p>
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
@@ -224,6 +224,6 @@ export default function Navbar() {
           }}
         />
       ) : null}
-    </header>
+    </div>
   );
 }

@@ -59,13 +59,13 @@ export default function RecurringPaymentItem({
 
   return (
     <div
-      className={`rounded-[30px] border p-5 transition ${
+      className={`w-full min-w-0 max-w-full overflow-hidden rounded-[30px] border p-4 transition sm:p-5 ${
         active
           ? "border-white/8 bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.18)]"
           : "border-white/8 bg-white/[0.025] shadow-[0_18px_40px_rgba(0,0,0,0.14)]"
       }`}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className={`flex min-w-0 items-start gap-4 ${!active ? "opacity-65" : ""}`}>
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-xl">
             {categoryInfo?.icon || "💸"}
@@ -88,7 +88,7 @@ export default function RecurringPaymentItem({
           </div>
         </div>
 
-        <div className="ml-4 flex shrink-0 flex-col items-end gap-2">
+        <div className="flex w-full shrink-0 flex-row items-start justify-between gap-3 sm:ml-4 sm:w-auto sm:flex-col sm:items-end">
           <p className="text-xl font-semibold tracking-tight text-white">
             {Number(amount).toFixed(2)} €
           </p>
@@ -99,7 +99,7 @@ export default function RecurringPaymentItem({
             </span>
           )}
 
-          <div className="relative" ref={actionsRef}>
+          <div className="relative shrink-0" ref={actionsRef}>
             <button
               onClick={() => setShowActions((v) => !v)}
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xl leading-none text-slate-300 transition hover:bg-white/[0.08] hover:text-white"

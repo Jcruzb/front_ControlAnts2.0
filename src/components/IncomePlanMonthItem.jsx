@@ -55,11 +55,11 @@ export default function IncomePlanMonthItem({
   }, [showActions]);
 
   return (
-    <article className="rounded-[30px] border border-white/8 bg-white/[0.04] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur-sm">
-      <div className="flex items-start justify-between gap-3">
+    <article className="w-full min-w-0 max-w-full overflow-hidden rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur-sm sm:p-5">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold tracking-tight text-white">
+            <h3 className="min-w-0 truncate text-base font-semibold tracking-tight text-white">
               {item?.name || "Sueldo planificado"}
             </h3>
             <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusMeta.badge}`}>
@@ -72,13 +72,13 @@ export default function IncomePlanMonthItem({
           <p className="mt-1 text-sm text-slate-400">
             Planificado: {Number(plannedAmount || 0).toFixed(2)} €
           </p>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 break-words text-xs text-slate-500">
             {categoryName}
             {item?.due_day ? ` · Día ${item.due_day}` : ""}
           </p>
         </div>
 
-        <div className="relative shrink-0" ref={actionsRef}>
+        <div className="relative shrink-0 self-end sm:self-auto" ref={actionsRef}>
           <button
             type="button"
             onClick={() => setShowActions((value) => !value)}
