@@ -4,7 +4,9 @@ import RecurringPaymentItem from "../components/RecurringPaymentItem";
 import RecurringPaymentForm from "../components/RecurringPaymentForm";
 import ListControls from "../components/ListControls";
 import BulkImportModal from "../components/BulkImportModal";
-import { getApiErrorMessage } from "../services/api";
+import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
+import ExpenseFormModal from "../components/ExpenseFormModal";
+import api, { getApiErrorMessage } from "../services/api";
 import { getCategories } from "../services/categories";
 import { getTodayLocalDate } from "../utils/date";
 import {
@@ -39,6 +41,15 @@ export default function RecurringPayments() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkImportMessage, setBulkImportMessage] = useState(null);
+  const [detailState, setDetailState] = useState({
+    isOpen: false,
+    loading: false,
+    error: null,
+    data: null,
+  });
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [paymentFormLoading, setPaymentFormLoading] = useState(false);
+  const [paymentFormError, setPaymentFormError] = useState(null);
 
   // Mapa rápido de categorías por id
   const categoryMap = categories.reduce((acc, cat) => {
@@ -190,6 +201,124 @@ export default function RecurringPayments() {
       );
     }
   };
+
+  const openRecurringDetail = async (item) => {
+    setDetailState({
+      isOpen: true,
+      loading: true,
+      error: null,
+      data: {
+        ...item,
+        payments: [],
+      },
+    });
+
+    try {
+      const detail = await recurringPaymentsService.getPayments(item.id);
+      setDetailState({
+        isOpen: true,
+        loading: false,
+        error: null,
+        data: detail,
+      });
+    } catch (detailError) {
+      console.error(detailError);
+      setDetailState({
+        isOpen: true,
+        loading: false,
+        error: getApiErrorMessage(
+          detailError,
+          "No se pudo cargar el detalle del gasto fijo"
+        ),
+        data: {
+          ...item,
+          payments: [],
+        },
+      });
+    }
+  };
+
+  const closeRecurringDetail = () => {
+    setDetailState((current) => ({ ...current, isOpen: false }));
+    setEditingPayment(null);
+    setPaymentFormError(null);
+  };
+
+  async function handleSavePayment(payload) {
+    if (!editingPayment?.id) return;
+
+    if (!payload.amount || Number(payload.amount) <= 0) {
+      setPaymentFormError("El importe debe ser mayor que 0");
+      return;
+    }
+
+    if (!String(payload.category).trim()) {
+      setPaymentFormError("La categoría es obligatoria");
+      return;
+    }
+
+    try {
+      setPaymentFormLoading(true);
+      setPaymentFormError(null);
+      const response = await api.patch(`/expenses/${editingPayment.id}/`, {
+        ...payload,
+        category: Number(payload.category),
+      });
+
+      setDetailState((current) => {
+        if (!current.data) return current;
+
+        return {
+          ...current,
+          data: {
+            ...current.data,
+            payments: current.data.payments.map((payment) =>
+              payment.id === editingPayment.id ? response : payment
+            ),
+          },
+        };
+      });
+      setEditingPayment(null);
+    } catch (saveError) {
+      console.error(saveError);
+      setPaymentFormError(
+        getApiErrorMessage(saveError, "No se pudo guardar el pago")
+      );
+    } finally {
+      setPaymentFormLoading(false);
+    }
+  }
+
+  async function handleDeletePayment(payment) {
+    if (
+      !window.confirm(
+        `¿Eliminar ${payment?.description || "este pago"}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await api.delete(`/expenses/${payment.id}/`);
+      setDetailState((current) => {
+        if (!current.data) return current;
+
+        return {
+          ...current,
+          data: {
+            ...current.data,
+            payments: current.data.payments.filter((item) => item.id !== payment.id),
+          },
+        };
+      });
+    } catch (deleteError) {
+      console.error(deleteError);
+      setError(
+        getApiErrorMessage(deleteError, "No se pudo eliminar el pago")
+      );
+    }
+  }
 
   async function downloadRecurringTemplate() {
     await downloadWorkbook("plantilla-gastos-fijos.xlsx", [
@@ -527,6 +656,7 @@ export default function RecurringPayments() {
               onEdit={openEditModal}
               onDeactivate={handleDeactivate}
               onReactivate={handleReactivate}
+              onOpenDetails={openRecurringDetail}
             />
           ))}
         </div>
@@ -569,6 +699,69 @@ export default function RecurringPayments() {
         onConfirm={saveBulkRecurring}
         confirmLabel="Guardar gastos fijos"
         emptyPreviewMessage="Carga una plantilla Excel para previsualizar los gastos fijos."
+      />
+
+      <ExpenseDetailSheet
+        isOpen={detailState.isOpen}
+        title={detailState.data?.name || "Gasto fijo"}
+        subtitle={
+          detailState.data
+            ? categoryMap[detailState.data.category]?.name || "Sin categoría"
+            : null
+        }
+        amount={detailState.data?.amount ?? null}
+        meta={
+          detailState.data
+            ? [
+                {
+                  label: "Día de cobro",
+                  value: detailState.data.due_day
+                    ? `Día ${detailState.data.due_day}`
+                    : "Sin definir",
+                },
+                {
+                  label: "Inicio",
+                  value: detailState.data.start_date || "Sin fecha",
+                },
+                {
+                  label: "Fin",
+                  value: detailState.data.end_date || "Sin fecha de fin",
+                },
+                {
+                  label: "Estado",
+                  value: detailState.data.active ? "Activo" : "Inactivo",
+                },
+              ]
+            : []
+        }
+        payments={detailState.data?.payments || []}
+        loading={detailState.loading}
+        error={detailState.error}
+        emptyMessage="Este gasto fijo aún no tiene pagos registrados."
+        onClose={closeRecurringDetail}
+        onEditPayment={(payment) => {
+          setPaymentFormError(null);
+          setEditingPayment(payment);
+        }}
+        onDeletePayment={handleDeletePayment}
+        getPaymentCategoryLabel={(payment) =>
+          categoryMap[payment.category]?.name || null
+        }
+      />
+
+      <ExpenseFormModal
+        key={editingPayment?.id ?? "recurring-payment-form"}
+        isOpen={Boolean(editingPayment)}
+        expense={editingPayment}
+        categories={categories}
+        loading={paymentFormLoading}
+        error={paymentFormError}
+        onClose={() => {
+          if (paymentFormLoading) return;
+          setEditingPayment(null);
+          setPaymentFormError(null);
+        }}
+        onSubmit={handleSavePayment}
       />
     </div>
   );

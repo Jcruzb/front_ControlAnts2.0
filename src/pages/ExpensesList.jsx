@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import MonthNavigation from "../components/MonthNavigation";
 import ListControls from "../components/ListControls";
 import BulkImportModal from "../components/BulkImportModal";
+import CardActionsMenu from "../components/CardActionsMenu";
+import ExpenseFormModal from "../components/ExpenseFormModal";
+import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
 import api, {
   getApiErrorMessage,
@@ -39,6 +42,90 @@ function getExpenseCategoryName(expense) {
   return "Sin categoría";
 }
 
+function getExpenseCategoryIcon(expense) {
+  if (typeof expense?.category_detail?.icon === "string") {
+    return expense.category_detail.icon;
+  }
+
+  if (typeof expense?.category_icon === "string") {
+    return expense.category_icon;
+  }
+
+  if (typeof expense?.category?.icon === "string") {
+    return expense.category.icon;
+  }
+
+  return expense?.is_recurring === true ? "🔁" : "💸";
+}
+
+function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
+  const title = expense.description || "Gasto";
+  const subtitle = getExpenseCategoryName(expense);
+  const handleCardClick = (event) => {
+    if (typeof onOpenDetails !== "function") return;
+
+    if (
+      event.target.closest(
+        'button, a, input, select, textarea, [data-no-detail-open="true"]'
+      )
+    ) {
+      return;
+    }
+
+    onOpenDetails(expense);
+  };
+
+  return (
+    <div
+      onClick={handleCardClick}
+      className={`flex min-w-0 flex-col gap-3 rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:flex-row sm:items-center sm:justify-between sm:p-5 ${
+        typeof onOpenDetails === "function" ? "cursor-pointer hover:border-white/12" : ""
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-xl">
+          {getExpenseCategoryIcon(expense)}
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="truncate font-medium text-white">
+            {expense.is_recurring === true ? (
+              <span className="mr-1 text-slate-500">🔁</span>
+            ) : null}
+            {title}
+          </p>
+          <p className="text-sm text-slate-400">{subtitle}</p>
+          <p className="text-xs text-slate-500">{expense.date}</p>
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-start justify-between gap-3 sm:ml-4 sm:items-center">
+        <div className="text-left sm:text-right">
+          <p className="text-lg font-semibold text-red-300">
+            − {Number(expense.amount).toFixed(2)} €
+          </p>
+        </div>
+
+        <CardActionsMenu
+          title={title}
+          subtitle={subtitle}
+          actions={[
+            {
+              label: "Editar",
+              onSelect: () => onEdit(expense),
+            },
+            {
+              label: "Eliminar",
+              tone: "danger",
+              onSelect: () => onDelete(expense),
+            },
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+
 const ExpensesList = () => {
   const {
     currentYear,
@@ -61,31 +148,40 @@ const ExpensesList = () => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkImportMessage, setBulkImportMessage] = useState(null);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [detailExpense, setDetailExpense] = useState(null);
 
-  const fetchExpenses = useCallback(async () => {
+  const fetchExpenses = useCallback(async ({ silent = false, includeCategories = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
 
-      const [data, categoriesData] = await Promise.all([
-        api.get("/expenses/", {
-          params: { year, month },
-        }),
-        getCategories(),
-      ]);
+      const data = await api.get("/expenses/", {
+        params: { year, month },
+      });
 
       setExpenses(unwrapCollectionResponse(data));
-      setCategories(categoriesData);
+
+      if (includeCategories) {
+        const categoriesData = await getCategories();
+        setCategories(categoriesData);
+      }
     } catch (err) {
       console.error(err);
       setError(getApiErrorMessage(err, "No se pudieron cargar los gastos"));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [month, year]);
 
   useEffect(() => {
-    fetchExpenses();
+    fetchExpenses({ includeCategories: true });
   }, [fetchExpenses]);
 
   const categoryLookup = useMemo(
@@ -324,6 +420,74 @@ const ExpensesList = () => {
     );
   }
 
+  async function handleSaveExpense(payload) {
+    if (!editingExpense?.id) return;
+
+    if (!payload.amount || Number(payload.amount) <= 0) {
+      setFormError("El importe debe ser mayor que 0");
+      return;
+    }
+
+    if (!String(payload.category).trim()) {
+      setFormError("La categoría es obligatoria");
+      return;
+    }
+
+    try {
+      setFormLoading(true);
+      setFormError(null);
+      await api.patch(`/expenses/${editingExpense.id}/`, {
+        ...payload,
+        category: Number(payload.category),
+      });
+      const updatedExpense = {
+        ...editingExpense,
+        ...payload,
+        category: Number(payload.category),
+      };
+      setExpenses((current) =>
+        current.map((item) =>
+          item.id === editingExpense.id ? { ...item, ...updatedExpense } : item
+        )
+      );
+      setDetailExpense((current) =>
+        current?.id === editingExpense.id ? { ...current, ...updatedExpense } : current
+      );
+      setEditingExpense(null);
+    } catch (saveError) {
+      console.error(saveError);
+      setFormError(
+        getApiErrorMessage(saveError, "No se pudo guardar el gasto")
+      );
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
+  async function handleDeleteExpense(expense) {
+    const expenseLabel = expense?.description || "este gasto";
+
+    if (
+      !window.confirm(
+        `¿Eliminar ${expenseLabel}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await api.delete(`/expenses/${expense.id}/`);
+      setExpenses((current) => current.filter((item) => item.id !== expense.id));
+      setDetailExpense((current) => (current?.id === expense.id ? null : current));
+    } catch (deleteError) {
+      console.error(deleteError);
+      setError(
+        getApiErrorMessage(deleteError, "No se pudo eliminar el gasto")
+      );
+    }
+  }
+
   if (loading) {
     return (
       <div className="rounded-[32px] border border-white/8 bg-white/[0.04] p-6 text-center text-slate-400 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
@@ -456,29 +620,16 @@ const ExpensesList = () => {
 
       <div className="space-y-3">
         {filteredExpenses.map((expense) => (
-          <div
+          <ExpenseCard
             key={expense.id}
-            className="flex min-w-0 flex-col gap-3 rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:flex-row sm:items-center sm:justify-between sm:p-5"
-          >
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="truncate font-medium text-white">
-                {expense.is_recurring === true && <span className="mr-1 text-slate-500">🔁</span>}
-                {expense.description || "Gasto"}
-              </p>
-              <p className="text-sm text-slate-400">
-                {getExpenseCategoryName(expense)}
-              </p>
-              <p className="text-xs text-slate-500">
-                {expense.date}
-              </p>
-            </div>
-
-            <div className="shrink-0 text-left sm:text-right">
-              <p className="text-lg font-semibold text-red-300">
-                − {Number(expense.amount).toFixed(2)} €
-              </p>
-            </div>
-          </div>
+            expense={expense}
+            onEdit={(selectedExpense) => {
+              setFormError(null);
+              setEditingExpense(selectedExpense);
+            }}
+            onDelete={handleDeleteExpense}
+            onOpenDetails={setDetailExpense}
+          />
         ))}
       </div>
 
@@ -504,6 +655,51 @@ const ExpensesList = () => {
         onConfirm={saveBulkExpenses}
         confirmLabel="Guardar gastos"
         emptyPreviewMessage="Carga una plantilla Excel para previsualizar los gastos."
+      />
+
+      <ExpenseFormModal
+        key={editingExpense?.id ?? "expense-form"}
+        isOpen={Boolean(editingExpense)}
+        expense={editingExpense}
+        categories={categories}
+        loading={formLoading}
+        error={formError}
+        onClose={() => {
+          if (formLoading) return;
+          setEditingExpense(null);
+          setFormError(null);
+        }}
+        onSubmit={handleSaveExpense}
+      />
+
+      <ExpenseDetailSheet
+        isOpen={Boolean(detailExpense)}
+        title={detailExpense?.description || "Gasto"}
+        subtitle={detailExpense ? getExpenseCategoryName(detailExpense) : null}
+        amount={detailExpense?.amount ?? null}
+        meta={
+          detailExpense
+            ? [
+                { label: "Fecha", value: detailExpense.date || "Sin fecha" },
+                {
+                  label: "Tipo",
+                  value:
+                    detailExpense.is_recurring === true
+                      ? "Pago recurrente"
+                      : "Gasto puntual",
+                },
+              ]
+            : []
+        }
+        payments={detailExpense ? [detailExpense] : []}
+        emptyMessage="Este gasto no tiene más pagos asociados."
+        onClose={() => setDetailExpense(null)}
+        onEditPayment={(payment) => {
+          setFormError(null);
+          setEditingExpense(payment);
+        }}
+        onDeletePayment={handleDeleteExpense}
+        getPaymentCategoryLabel={(payment) => getExpenseCategoryName(payment)}
       />
     </section>
   );

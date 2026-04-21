@@ -4,6 +4,8 @@ import AdjustIncomePlanModal from "../components/AdjustIncomePlanModal";
 import CreateIncomePlanModal from "../components/CreateIncomePlanModal";
 import IncomePlanMonthItem from "../components/IncomePlanMonthItem";
 import MonthNavigation from "../components/MonthNavigation";
+import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
+import ExpenseFormModal from "../components/ExpenseFormModal";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
 import api, {
   getApiErrorMessage,
@@ -12,6 +14,7 @@ import api, {
 import QuickAddIncome from "../components/QuickAddIncome";
 import MobilePrimaryAction from "../components/MobilePrimaryAction";
 import ListControls from "../components/ListControls";
+import { getCategories } from "../services/categories";
 import {
   createIncomePlan,
   adjustIncomePlan,
@@ -20,6 +23,7 @@ import {
   updateIncomePlan,
   getIncomePlansMonth,
 } from "../services/incomePlans";
+import recurringPaymentsService from "../services/recurringPaymentsService";
 import { getTodayLocalDate } from "../utils/date";
 
 function getBudgetItemLabel(item, type) {
@@ -74,6 +78,22 @@ function getBudgetItemCategoryValue(item) {
   }
 
   return getBudgetItemCategoryName(item).toLowerCase();
+}
+
+function getBudgetExpenseCategoryName(expense) {
+  if (typeof expense?.category_detail?.name === "string") {
+    return expense.category_detail.name;
+  }
+
+  if (typeof expense?.category_name === "string") {
+    return expense.category_name;
+  }
+
+  if (typeof expense?.category === "string") {
+    return expense.category;
+  }
+
+  return null;
 }
 
 function getBudgetPaymentState(item) {
@@ -137,6 +157,8 @@ export default function Budget() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [budgetExpenses, setBudgetExpenses] = useState([]);
+  const [expenseCategories, setExpenseCategories] = useState([]);
 
   const [incomes, setIncomes] = useState([]);
   const [incomesLoading, setIncomesLoading] = useState(true);
@@ -157,6 +179,18 @@ export default function Budget() {
   const [budgetFilter, setBudgetFilter] = useState("all");
   const [budgetCategoryFilter, setBudgetCategoryFilter] = useState("all");
   const [budgetView, setBudgetView] = useState("expenses");
+  const [activeQuickBudgetAction, setActiveQuickBudgetAction] = useState(null);
+  const [budgetDetailState, setBudgetDetailState] = useState({
+    isOpen: false,
+    loading: false,
+    error: null,
+    type: null,
+    item: null,
+    payments: [],
+  });
+  const [editingBudgetPayment, setEditingBudgetPayment] = useState(null);
+  const [budgetPaymentFormLoading, setBudgetPaymentFormLoading] = useState(false);
+  const [budgetPaymentFormError, setBudgetPaymentFormError] = useState(null);
 
   const getIncomeCategoryName = useCallback((income) => {
     if (typeof income?.category_detail?.name === "string") {
@@ -190,8 +224,11 @@ export default function Budget() {
     return "💰";
   }, []);
 
-  const fetchBudget = useCallback(async () => {
-    setLoading(true);
+  const fetchBudget = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+    }
+
     setError(null);
     try {
       const res = await api.get("/budget/", {
@@ -202,7 +239,9 @@ export default function Budget() {
       console.error(err);
       setError("No se pudo cargar el presupuesto");
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [month, year]);
 
@@ -224,6 +263,14 @@ export default function Budget() {
     }
   }, [year, month]);
 
+  const fetchBudgetExpenses = useCallback(async () => {
+    const response = await api.get("/expenses/", {
+      params: { year, month },
+    });
+
+    setBudgetExpenses(unwrapCollectionResponse(response));
+  }, [month, year]);
+
   const fetchIncomePlanMonth = useCallback(async () => {
     setIncomePlanMonthLoading(true);
     setIncomePlanMonthError(null);
@@ -244,7 +291,15 @@ export default function Budget() {
     fetchBudget();
     fetchIncomes();
     fetchIncomePlanMonth();
-  }, [fetchBudget, fetchIncomePlanMonth, fetchIncomes]);
+    fetchBudgetExpenses().catch((fetchError) => {
+      console.error(fetchError);
+    });
+    getCategories()
+      .then((categories) => setExpenseCategories(categories))
+      .catch((fetchError) => {
+        console.error(fetchError);
+      });
+  }, [fetchBudget, fetchIncomePlanMonth, fetchIncomes, fetchBudgetExpenses]);
 
   async function handleQuickAddSubmit({
     amount,
@@ -266,7 +321,7 @@ export default function Budget() {
     console.log("[QuickAdd] Enviando gasto:", payload);
 
     await api.post("/expenses/", payload);
-    await fetchBudget();
+    await Promise.all([fetchBudget({ silent: true }), fetchBudgetExpenses()]);
   }
 
   function getDefaultExpenseDateForCurrentBudget() {
@@ -295,14 +350,235 @@ export default function Budget() {
       return;
     }
 
-    await handleQuickAddSubmit({
-      amount: Number(item.planned_amount || 0),
-      date: getDefaultExpenseDateForCurrentBudget(),
-      note: `Pago total de ${label}`,
-      categoryId: item.category,
-      plannedExpenseId: type === "planned" ? item.id : null,
-      recurringPaymentId: type === "recurring" ? item.id : null,
+    try {
+      setError(null);
+      setActiveQuickBudgetAction({
+        id: `${type}-${item.id}`,
+        type: "pay",
+      });
+      await handleQuickAddSubmit({
+        amount: Number(item.planned_amount || 0),
+        date: getDefaultExpenseDateForCurrentBudget(),
+        note: `Pago total de ${label}`,
+        categoryId: item.category,
+        plannedExpenseId: type === "planned" ? item.id : null,
+        recurringPaymentId: type === "recurring" ? item.id : null,
+      });
+    } catch (quickPayError) {
+      console.error(quickPayError);
+      setError(
+        getApiErrorMessage(quickPayError, "No se pudo registrar el pago total")
+      );
+    } finally {
+      setActiveQuickBudgetAction(null);
+    }
+  }
+
+  function getBudgetItemLinkId(item) {
+    if (typeof item?.id === "number") {
+      return item.id;
+    }
+
+    const numericId = Number(item?.id);
+    return Number.isFinite(numericId) ? numericId : null;
+  }
+
+  function getQuickPayExpenseForItem(item, type) {
+    if (!item) return null;
+
+    const linkId = getBudgetItemLinkId(item);
+    const label = getBudgetItemLabel(item, type);
+
+    if (!linkId) {
+      return null;
+    }
+
+    const matches = budgetExpenses.filter((expense) => {
+      const expectedLinkField =
+        type === "planned" ? expense?.planned_expense : expense?.recurring_payment;
+      const expenseLinkId =
+        expectedLinkField != null ? Number(expectedLinkField) : null;
+      const expenseAmount = Number(expense?.amount || 0);
+      const plannedAmount = Number(item?.planned_amount || 0);
+      const description = String(expense?.description || "").trim();
+
+      return (
+        expenseLinkId === linkId &&
+        expenseAmount === plannedAmount &&
+        description === `Pago total de ${label}`
+      );
     });
+
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  async function handleQuickRevertPlannedExpense(item, type) {
+    if (!item) return;
+
+    const reversibleExpense = getQuickPayExpenseForItem(item, type);
+
+    if (!reversibleExpense?.id) {
+      return;
+    }
+
+    const label = getBudgetItemLabel(item, type);
+    const confirmMessage = `¿Revertir el pago total de "${label}"? Se eliminará el registro de gasto creado por esta acción.`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      setActiveQuickBudgetAction({
+        id: `${type}-${item.id}`,
+        type: "revert",
+      });
+      await api.delete(`/expenses/${reversibleExpense.id}/`);
+      await Promise.all([fetchBudget({ silent: true }), fetchBudgetExpenses()]);
+    } catch (quickRevertError) {
+      console.error(quickRevertError);
+      setError(
+        getApiErrorMessage(
+          quickRevertError,
+          "No se pudo revertir el pago total"
+        )
+      );
+    } finally {
+      setActiveQuickBudgetAction(null);
+    }
+  }
+
+  async function openBudgetItemDetail(item, type) {
+    if (!item) return;
+
+    if (type === "planned") {
+      const plannedPayments = budgetExpenses.filter(
+        (expense) => Number(expense?.planned_expense) === Number(item.id)
+      );
+
+      setBudgetDetailState({
+        isOpen: true,
+        loading: false,
+        error: null,
+        type,
+        item,
+        payments: plannedPayments,
+      });
+      return;
+    }
+
+    setBudgetDetailState({
+      isOpen: true,
+      loading: true,
+      error: null,
+      type,
+      item,
+      payments: [],
+    });
+
+    try {
+      const detail = await recurringPaymentsService.getPayments(item.id);
+      setBudgetDetailState({
+        isOpen: true,
+        loading: false,
+        error: null,
+        type,
+        item,
+        payments: Array.isArray(detail?.payments) ? detail.payments : [],
+      });
+    } catch (detailError) {
+      console.error(detailError);
+      setBudgetDetailState({
+        isOpen: true,
+        loading: false,
+        error: getApiErrorMessage(
+          detailError,
+          "No se pudo cargar el detalle del gasto"
+        ),
+        type,
+        item,
+        payments: [],
+      });
+    }
+  }
+
+  function closeBudgetItemDetail() {
+    setBudgetDetailState((current) => ({ ...current, isOpen: false }));
+    setEditingBudgetPayment(null);
+    setBudgetPaymentFormError(null);
+  }
+
+  async function handleSaveBudgetPayment(payload) {
+    if (!editingBudgetPayment?.id) return;
+
+    if (!payload.amount || Number(payload.amount) <= 0) {
+      setBudgetPaymentFormError("El importe debe ser mayor que 0");
+      return;
+    }
+
+    if (!String(payload.category).trim()) {
+      setBudgetPaymentFormError("La categoría es obligatoria");
+      return;
+    }
+
+    try {
+      setBudgetPaymentFormLoading(true);
+      setBudgetPaymentFormError(null);
+      const response = await api.patch(`/expenses/${editingBudgetPayment.id}/`, {
+        ...payload,
+        category: Number(payload.category),
+      });
+
+      setBudgetExpenses((current) =>
+        current.map((expense) =>
+          expense.id === editingBudgetPayment.id ? response : expense
+        )
+      );
+      setBudgetDetailState((current) => ({
+        ...current,
+        payments: current.payments.map((payment) =>
+          payment.id === editingBudgetPayment.id ? response : payment
+        ),
+      }));
+      setEditingBudgetPayment(null);
+      await fetchBudget({ silent: true });
+    } catch (saveError) {
+      console.error(saveError);
+      setBudgetPaymentFormError(
+        getApiErrorMessage(saveError, "No se pudo guardar el pago")
+      );
+    } finally {
+      setBudgetPaymentFormLoading(false);
+    }
+  }
+
+  async function handleDeleteBudgetPayment(payment) {
+    if (
+      !window.confirm(
+        `¿Eliminar ${payment?.description || "este pago"}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await api.delete(`/expenses/${payment.id}/`);
+      setBudgetExpenses((current) =>
+        current.filter((expense) => expense.id !== payment.id)
+      );
+      setBudgetDetailState((current) => ({
+        ...current,
+        payments: current.payments.filter((item) => item.id !== payment.id),
+      }));
+      await fetchBudget({ silent: true });
+    } catch (deleteError) {
+      console.error(deleteError);
+      setError(
+        getApiErrorMessage(deleteError, "No se pudo eliminar el pago")
+      );
+    }
   }
 
   const totalIncome = useMemo(() => {
@@ -971,7 +1247,11 @@ export default function Budget() {
             </div>
             {filteredPlanned.length > 0 ? (
               <div className="space-y-3">
-                {filteredPlanned.map((item) => (
+                {filteredPlanned.map((item) => {
+                  const reversibleExpense = getQuickPayExpenseForItem(item, "planned");
+                  const itemActionKey = `planned-${item.id}`;
+
+                  return (
                   <BudgetItem
                     key={`planned-${item.id}`}
                     type="planned"
@@ -979,10 +1259,19 @@ export default function Budget() {
                     icon="🛒"
                     onQuickAddSubmit={handleQuickAddSubmit}
                     onQuickPayTotal={handleQuickPayPlannedExpense}
+                    onQuickRevertTotal={handleQuickRevertPlannedExpense}
+                    canQuickRevert={Boolean(reversibleExpense)}
+                    quickActionLoading={
+                      activeQuickBudgetAction?.id === itemActionKey
+                        ? activeQuickBudgetAction.type
+                        : null
+                    }
                     budgetYear={year}
                     budgetMonth={month}
+                    onOpenDetails={openBudgetItemDetail}
                   />
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
@@ -1003,7 +1292,11 @@ export default function Budget() {
               </div>
               <div className="space-y-3">
                 {filteredRecurring.length > 0 ? (
-                  filteredRecurring.map((item) => (
+                  filteredRecurring.map((item) => {
+                    const reversibleExpense = getQuickPayExpenseForItem(item, "recurring");
+                    const itemActionKey = `recurring-${item.id}`;
+
+                    return (
                     <BudgetItem
                       key={`recurring-${item.id}`}
                       type="recurring"
@@ -1011,10 +1304,19 @@ export default function Budget() {
                       icon="🔁"
                       onQuickAddSubmit={handleQuickAddSubmit}
                       onQuickPayTotal={handleQuickPayPlannedExpense}
+                      onQuickRevertTotal={handleQuickRevertPlannedExpense}
+                      canQuickRevert={Boolean(reversibleExpense)}
+                      quickActionLoading={
+                        activeQuickBudgetAction?.id === itemActionKey
+                          ? activeQuickBudgetAction.type
+                          : null
+                      }
                       budgetYear={year}
                       budgetMonth={month}
+                      onOpenDetails={openBudgetItemDetail}
                     />
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
                     No hay gastos fijos con estos filtros.
@@ -1151,6 +1453,78 @@ export default function Budget() {
         title={editingIncomePlan ? "Editar ingreso planificado" : "Crear ingreso planificado"}
         subtitle={editingIncomePlan ? "Sueldo recurrente existente" : "Sueldo recurrente"}
         submitLabel={editingIncomePlan ? "Guardar cambios" : "Crear plan"}
+      />
+
+      <ExpenseDetailSheet
+        isOpen={budgetDetailState.isOpen}
+        title={
+          budgetDetailState.item
+            ? getBudgetItemLabel(budgetDetailState.item, budgetDetailState.type)
+            : "Detalle del gasto"
+        }
+        subtitle={
+          budgetDetailState.item
+            ? getBudgetItemCategoryName(budgetDetailState.item)
+            : null
+        }
+        amount={budgetDetailState.item?.planned_amount ?? null}
+        meta={
+          budgetDetailState.item
+            ? [
+                {
+                  label: "Vista",
+                  value:
+                    budgetDetailState.type === "recurring"
+                      ? "Gasto fijo"
+                      : "Partida planificada",
+                },
+                {
+                  label: "Usado",
+                  value: `${Number(
+                    budgetDetailState.item.spent_amount || 0
+                  ).toFixed(2)} €`,
+                },
+                {
+                  label: "Restante",
+                  value: `${Number(
+                    budgetDetailState.item.remaining_amount || 0
+                  ).toFixed(2)} €`,
+                },
+                {
+                  label: "Estado",
+                  value: getBudgetPaymentStateLabel(
+                    getBudgetPaymentState(budgetDetailState.item)
+                  ),
+                },
+              ]
+            : []
+        }
+        payments={budgetDetailState.payments}
+        loading={budgetDetailState.loading}
+        error={budgetDetailState.error}
+        emptyMessage="Este elemento aún no tiene pagos vinculados."
+        onClose={closeBudgetItemDetail}
+        onEditPayment={(payment) => {
+          setBudgetPaymentFormError(null);
+          setEditingBudgetPayment(payment);
+        }}
+        onDeletePayment={handleDeleteBudgetPayment}
+        getPaymentCategoryLabel={(payment) => getBudgetExpenseCategoryName(payment)}
+      />
+
+      <ExpenseFormModal
+        key={editingBudgetPayment?.id ?? "budget-payment-form"}
+        isOpen={Boolean(editingBudgetPayment)}
+        expense={editingBudgetPayment}
+        categories={expenseCategories}
+        loading={budgetPaymentFormLoading}
+        error={budgetPaymentFormError}
+        onClose={() => {
+          if (budgetPaymentFormLoading) return;
+          setEditingBudgetPayment(null);
+          setBudgetPaymentFormError(null);
+        }}
+        onSubmit={handleSaveBudgetPayment}
       />
 
       <MobilePrimaryAction to="/expenses/new" label="+ Añadir gasto" />

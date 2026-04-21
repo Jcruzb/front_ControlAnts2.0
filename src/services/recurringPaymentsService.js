@@ -33,6 +33,10 @@ const recurringPaymentsService = {
         return api.put(`${BASE_URL}${id}/`, data);
     },
 
+    getPayments(id) {
+        return api.get(`${BASE_URL}${id}/payments/`);
+    },
+
     /**
      * Desactivar (soft delete) un gasto fijo
      * DELETE /api/recurring-payments/:id/

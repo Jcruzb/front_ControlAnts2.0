@@ -7,8 +7,12 @@ export default function BudgetItem({
   icon = "💸",
   onQuickAddSubmit,
   onQuickPayTotal,
+  onQuickRevertTotal,
+  quickActionLoading = null,
+  canQuickRevert = false,
   budgetYear,
   budgetMonth,
+  onOpenDetails,
 }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
@@ -57,9 +61,39 @@ export default function BudgetItem({
 
   if (!item) return null;
 
+  const handleCardClick = (event) => {
+    if (typeof onOpenDetails !== "function") return;
+
+    if (
+      event.target.closest(
+        'button, a, input, select, textarea, [data-no-detail-open="true"]'
+      )
+    ) {
+      return;
+    }
+
+    onOpenDetails(item, type);
+  };
+
+  const quickActionLabel =
+    canQuickRevert === true ? "Revertir pago" : "Pagar total";
+  const quickActionAriaLabel =
+    canQuickRevert === true
+      ? `Revertir pago de ${title}`
+      : `Pagar total de ${title}`;
+  const quickActionHandler =
+    canQuickRevert === true ? onQuickRevertTotal : onQuickPayTotal;
+  const quickActionPendingLabel =
+    canQuickRevert === true ? "Revirtiendo..." : "Pagando...";
+
   return (
     <>
-      <div className="group w-full min-w-0 max-w-full overflow-hidden rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur-sm transition hover:border-white/12 hover:bg-white/[0.055] sm:p-5">
+      <div
+        onClick={handleCardClick}
+        className={`group w-full min-w-0 max-w-full overflow-hidden rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur-sm transition hover:border-white/12 hover:bg-white/[0.055] sm:p-5 ${
+          typeof onOpenDetails === "function" ? "cursor-pointer" : ""
+        }`}
+      >
         <div className="mb-4 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -87,24 +121,37 @@ export default function BudgetItem({
           </div>
 
           <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto">
-            {typeof onQuickPayTotal === "function" && (
+            {typeof quickActionHandler === "function" && (
               <button
                 type="button"
-                onClick={() => onQuickPayTotal(item, type)}
-                className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20 active:scale-[0.98] sm:w-auto"
-                aria-label={`Pagar total de ${title}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  quickActionHandler(item, type);
+                }}
+                disabled={quickActionLoading !== null}
+                className={`w-full rounded-2xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${
+                  canQuickRevert
+                    ? "border border-white/10 bg-white/[0.05] text-slate-100 hover:border-white/20 hover:bg-white/[0.09]"
+                    : "border border-emerald-400/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20"
+                }`}
+                aria-label={quickActionAriaLabel}
               >
-                Pagar total
+                {quickActionLoading !== null
+                  ? quickActionPendingLabel
+                  : quickActionLabel}
               </button>
             )}
 
-              <button
-                type="button"
-                onClick={() => setIsQuickAddOpen(true)}
-                className="w-full shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98] sm:w-auto"
-                aria-label={`Añadir gasto a ${title}`}
-              >
-                + gasto
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsQuickAddOpen(true);
+              }}
+              className="w-full shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98] sm:w-auto"
+              aria-label={`Añadir gasto a ${title}`}
+            >
+              + gasto
             </button>
           </div>
         </div>
