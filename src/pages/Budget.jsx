@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import BudgetItem from "../components/BudgetItem";
 import AdjustIncomePlanModal from "../components/AdjustIncomePlanModal";
 import CreateIncomePlanModal from "../components/CreateIncomePlanModal";
@@ -28,10 +28,10 @@ import { getTodayLocalDate } from "../utils/date";
 
 function getBudgetItemLabel(item, type) {
   if (type === "planned") {
-    return String(item?.category || "Sin categoría");
+    return getBudgetItemCategoryName(item);
   }
 
-  return String(item?.name || item?.category || "Sin categoría");
+  return String(item?.name || getBudgetItemCategoryName(item) || "Sin categoría");
 }
 
 function getBudgetItemSearchText(item, type) {
@@ -191,6 +191,7 @@ export default function Budget() {
   const [editingBudgetPayment, setEditingBudgetPayment] = useState(null);
   const [budgetPaymentFormLoading, setBudgetPaymentFormLoading] = useState(false);
   const [budgetPaymentFormError, setBudgetPaymentFormError] = useState(null);
+  const activeBudgetDetailRequestRef = useRef(0);
 
   const getIncomeCategoryName = useCallback((income) => {
     if (typeof income?.category_detail?.name === "string") {
@@ -452,6 +453,9 @@ export default function Budget() {
   async function openBudgetItemDetail(item, type) {
     if (!item) return;
 
+    const requestId = activeBudgetDetailRequestRef.current + 1;
+    activeBudgetDetailRequestRef.current = requestId;
+
     if (type === "planned") {
       const plannedPayments = budgetExpenses.filter(
         (expense) => Number(expense?.planned_expense) === Number(item.id)
@@ -479,6 +483,10 @@ export default function Budget() {
 
     try {
       const detail = await recurringPaymentsService.getPayments(item.id);
+      if (activeBudgetDetailRequestRef.current !== requestId) {
+        return;
+      }
+
       setBudgetDetailState({
         isOpen: true,
         loading: false,
@@ -489,6 +497,10 @@ export default function Budget() {
       });
     } catch (detailError) {
       console.error(detailError);
+      if (activeBudgetDetailRequestRef.current !== requestId) {
+        return;
+      }
+
       setBudgetDetailState({
         isOpen: true,
         loading: false,
@@ -504,6 +516,7 @@ export default function Budget() {
   }
 
   function closeBudgetItemDetail() {
+    activeBudgetDetailRequestRef.current += 1;
     setBudgetDetailState((current) => ({ ...current, isOpen: false }));
     setEditingBudgetPayment(null);
     setBudgetPaymentFormError(null);
@@ -571,6 +584,10 @@ export default function Budget() {
       setBudgetDetailState((current) => ({
         ...current,
         payments: current.payments.filter((item) => item.id !== payment.id),
+        isOpen:
+          current.payments.filter((item) => item.id !== payment.id).length > 0
+            ? current.isOpen
+            : false,
       }));
       await fetchBudget({ silent: true });
     } catch (deleteError) {

@@ -1,6 +1,32 @@
 import { useMemo, useState } from "react";
 import QuickAddExpense from "./QuickAddExpense";
 
+function getBudgetCardTitle(item, type) {
+  if (!item) return "";
+
+  if (typeof item?.name === "string" && item.name.trim()) {
+    return item.name.trim();
+  }
+
+  if (typeof item?.category_detail?.name === "string" && item.category_detail.name.trim()) {
+    return item.category_detail.name.trim();
+  }
+
+  if (typeof item?.category_name === "string" && item.category_name.trim()) {
+    return item.category_name.trim();
+  }
+
+  if (typeof item?.category === "string" && item.category.trim()) {
+    return item.category.trim();
+  }
+
+  if (type === "planned" && item?.category != null) {
+    return String(item.category);
+  }
+
+  return "Sin categoría";
+}
+
 export default function BudgetItem({
   type = "planned",
   item,
@@ -17,8 +43,7 @@ export default function BudgetItem({
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
   const title = useMemo(() => {
-    if (!item) return "";
-    return type === "planned" ? item.category : item.name;
+    return getBudgetCardTitle(item, type);
   }, [item, type]);
 
   const statusStyles = useMemo(() => {

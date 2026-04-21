@@ -1,5 +1,14 @@
+import { useMemo } from "react";
+
 function formatCurrency(value) {
   return `${Number(value || 0).toFixed(2)} €`;
+}
+
+function getPaymentTimestamp(value) {
+  if (!value) return Number.NEGATIVE_INFINITY;
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
 }
 
 export default function ExpenseDetailSheet({
@@ -17,6 +26,23 @@ export default function ExpenseDetailSheet({
   onDeletePayment,
   getPaymentCategoryLabel,
 }) {
+  const sortedPayments = useMemo(() => {
+    return [...payments].sort((a, b) => {
+      const dateDiff = getPaymentTimestamp(b?.date) - getPaymentTimestamp(a?.date);
+      if (dateDiff !== 0) {
+        return dateDiff;
+      }
+
+      const createdAtDiff =
+        getPaymentTimestamp(b?.created_at) - getPaymentTimestamp(a?.created_at);
+      if (createdAtDiff !== 0) {
+        return createdAtDiff;
+      }
+
+      return Number(b?.id || 0) - Number(a?.id || 0);
+    });
+  }, [payments]);
+
   if (!isOpen) return null;
 
   return (
@@ -90,7 +116,7 @@ export default function ExpenseDetailSheet({
                 </h3>
               </div>
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-slate-300">
-                {payments.length}
+                {sortedPayments.length}
               </span>
             </div>
 
@@ -102,13 +128,13 @@ export default function ExpenseDetailSheet({
               <div className="mt-4 rounded-[24px] border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-200">
                 {error}
               </div>
-            ) : payments.length === 0 ? (
+            ) : sortedPayments.length === 0 ? (
               <div className="mt-4 rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-slate-400">
                 {emptyMessage}
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {payments.map((payment) => {
+                {sortedPayments.map((payment) => {
                   const categoryLabel = getPaymentCategoryLabel?.(payment) || null;
 
                   return (

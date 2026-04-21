@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import recurringPaymentsService from "../services/recurringPaymentsService";
 import RecurringPaymentItem from "../components/RecurringPaymentItem";
 import RecurringPaymentForm from "../components/RecurringPaymentForm";
@@ -50,6 +50,7 @@ export default function RecurringPayments() {
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentFormLoading, setPaymentFormLoading] = useState(false);
   const [paymentFormError, setPaymentFormError] = useState(null);
+  const activeDetailRequestRef = useRef(0);
 
   // Mapa rápido de categorías por id
   const categoryMap = categories.reduce((acc, cat) => {
@@ -203,6 +204,9 @@ export default function RecurringPayments() {
   };
 
   const openRecurringDetail = async (item) => {
+    const requestId = activeDetailRequestRef.current + 1;
+    activeDetailRequestRef.current = requestId;
+
     setDetailState({
       isOpen: true,
       loading: true,
@@ -215,6 +219,10 @@ export default function RecurringPayments() {
 
     try {
       const detail = await recurringPaymentsService.getPayments(item.id);
+      if (activeDetailRequestRef.current !== requestId) {
+        return;
+      }
+
       setDetailState({
         isOpen: true,
         loading: false,
@@ -223,6 +231,10 @@ export default function RecurringPayments() {
       });
     } catch (detailError) {
       console.error(detailError);
+      if (activeDetailRequestRef.current !== requestId) {
+        return;
+      }
+
       setDetailState({
         isOpen: true,
         loading: false,
@@ -239,6 +251,7 @@ export default function RecurringPayments() {
   };
 
   const closeRecurringDetail = () => {
+    activeDetailRequestRef.current += 1;
     setDetailState((current) => ({ ...current, isOpen: false }));
     setEditingPayment(null);
     setPaymentFormError(null);
@@ -304,12 +317,17 @@ export default function RecurringPayments() {
       setDetailState((current) => {
         if (!current.data) return current;
 
+        const nextPayments = current.data.payments.filter(
+          (item) => item.id !== payment.id
+        );
+
         return {
           ...current,
           data: {
             ...current.data,
-            payments: current.data.payments.filter((item) => item.id !== payment.id),
+            payments: nextPayments,
           },
+          isOpen: nextPayments.length > 0 ? current.isOpen : false,
         };
       });
     } catch (deleteError) {
