@@ -122,6 +122,9 @@ const handleAction = async () => {
 
 **Presupuestos & Planes:**
 - GET /budget/ (params: year, month)
+- GET /income-plans/month/ (params: year, month)
+- POST /income-plans/{id}/confirm/ (params: year, month)
+- POST /income-plans/{id}/adjust/ (params: year, month)
 - GET/POST/PATCH /planned-expense-plans/
 - POST /planned-expense-plans/{id}/deactivate/
 - POST /planned-expense-plans/{id}/reactivate/
@@ -145,6 +148,18 @@ const handleAction = async () => {
 - **ExpensesList**: Listado completo de gastos del mes
 - **AddExpense**: Formulario crear gasto (monto, categoría, fecha)
 - **RecurringPayments**: CRUD de gastos fijos
+
+## Flujo Sensible: Ajuste de Ingresos Recurrentes
+
+Cuando se toque el flujo de `adjust` de ingresos recurrentes:
+
+1. Usa siempre `year/month` desde `BudgetMonthProvider` como fuente de verdad.
+2. El botón `Ajustar` debe abrir el modal para el mes visible, no para el mes real del sistema.
+3. El submit debe enviar `year` y `month` a `POST /income-plans/{id}/adjust/`.
+4. Después de ajustar, refresca el mes actual (`/budget/`, `/incomes/` y `/income-plans/month/` si aplica).
+5. Al navegar al mes siguiente, vuelve a consultar `/income-plans/month/?year=&month=`; no mantengas importes antiguos por caché local.
+6. El modal debe comunicar: `Este ajuste se aplicará desde este mes en adelante.`
+7. No cambies fórmulas de presupuesto ni backend para este flujo.
 
 ## Instrucciones para Desarrollo
 

@@ -173,6 +173,8 @@ Observación:
 
 - `confirm` y `adjust` requieren `year/month` explícitos.
 - este contrato ya está cableado correctamente en frontend.
+- el backend espera que `adjust` aplique desde el mes seleccionado hacia adelante; el frontend debe enviar siempre el `year/month` activo de `BudgetMonthProvider`.
+- después de ajustar, refrescar el mes actual y no conservar importes anteriores en estado local.
 
 ### Importación/exportación Excel
 
@@ -349,6 +351,13 @@ Esto reduce muchísimo lógica defensiva en frontend.
 ## Convenciones para futuros cambios
 
 - Mantener `year/month` como fuente de verdad desde `BudgetMonthProvider`.
+- En ajustes de ingresos recurrentes, comunicar al usuario: `Este ajuste se aplicará desde este mes en adelante.`
+- Al auditar `adjust`, verificar que:
+  - el click en `Ajustar` usa `year/month` actuales,
+  - el submit envía esos parámetros,
+  - el mes actual se refresca tras guardar,
+  - al navegar al mes siguiente se consulta otra vez `/api/income-plans/month/?year=&month=`,
+  - no queda caché local con el importe anterior.
 - No asumir nunca una forma única de categoría sin inspeccionar el payload real.
 - Reutilizar `getApiErrorMessage` para feedback visible al usuario.
 - Si se añade una nueva importación Excel, reutilizar `BulkImportModal` y `utils/spreadsheet.js`.
