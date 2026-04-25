@@ -39,6 +39,8 @@ export default function BudgetItem({
   budgetYear,
   budgetMonth,
   onOpenDetails,
+  payers = [],
+  payersError = null,
 }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
@@ -76,6 +78,10 @@ export default function BudgetItem({
     const raw = Number(item?.percentage_used ?? 0);
     return Math.max(0, Math.min(100, raw));
   }, [item?.percentage_used]);
+  const payerName =
+    typeof item?.payer_detail?.name === "string" && item.payer_detail.name.trim()
+      ? item.payer_detail.name
+      : null;
 
   const handleQuickAddSubmit = async (payload) => {
     if (typeof onQuickAddSubmit === "function") {
@@ -133,6 +139,9 @@ export default function BudgetItem({
                 <p className="mt-1 break-words text-xs text-slate-400">
                   {item.spent_amount} € usados de {item.planned_amount} €
                 </p>
+                {payerName ? (
+                  <p className="mt-1 text-xs text-slate-500">Paga: {payerName}</p>
+                ) : null}
               </div>
 
               {type === "recurring" && (
@@ -223,7 +232,10 @@ export default function BudgetItem({
           categoryId: item.category,
           plannedExpenseId: type === "planned" ? item.id : null,
           recurringPaymentId: type === "recurring" ? item.id : null,
+          payer: item.payer,
         }}
+        payers={payers}
+        payersError={payersError}
         onSubmit={handleQuickAddSubmit}
       />
     </>

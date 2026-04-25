@@ -60,7 +60,7 @@ export default function AdjustIncomePlanModal({
       <div className="w-full rounded-[32px] border border-white/10 bg-[#0d1117] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:max-w-md">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-slate-400">Ajustar sueldo</p>
+            <p className="text-sm text-slate-400">Ajustar salario</p>
             <h3 className="text-lg font-semibold tracking-tight text-white">
               {item.name || "Ingreso planificado"}
             </h3>

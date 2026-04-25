@@ -130,6 +130,32 @@ Observación importante:
 - el frontend ya está preparado para respuestas paginadas.
 - varias vistas dependen de `category_detail`, `category_name` o `category` con formas distintas.
 
+### Miembros / pagadores
+
+Archivo clave: [src/services/familyMembers.js](/Users/juancruzballadares/Desktop/Proyectos/front-controlAnts2.0/src/services/familyMembers.js)
+
+Contrato usado:
+
+- `GET /family/members/`
+
+Responsabilidades:
+
+- obtener miembros de familia disponibles para el selector `Quién paga`.
+- devolver colecciones normalizadas con `unwrapCollectionResponse`.
+
+Uso actual:
+
+- `AddExpense`
+- `ExpensesList` / `ExpenseFormModal`
+- `RecurringPayments` / `RecurringPaymentForm`
+- `Budget` / `QuickAddExpense`
+
+Notas:
+
+- `payer` es opcional en frontend.
+- si no se selecciona pagador, el payload no envía `payer` y el backend decide el fallback.
+- los gastos antiguos sin `payer` deben renderizar sin ruido, no como error.
+
 ### Ingresos recurrentes
 
 Archivo clave: [src/services/incomePlans.js](/Users/juancruzballadares/Desktop/Proyectos/front-controlAnts2.0/src/services/incomePlans.js)
@@ -180,12 +206,14 @@ Responsabilidades actuales:
 - filtros de gastos por búsqueda, estado, orden y categoría
 - registro rápido de pagos
 - alta, edición, ajuste, confirmación y borrado de ingresos planificados
+- muestra `payer_detail` cuando el backend lo devuelve en items o pagos
 
 Dependencias de contrato backend:
 
 - `/budget/`
 - `/incomes/`
 - `/income-plans/month/`
+- `/family/members/`
 
 Riesgo actual:
 
@@ -214,6 +242,8 @@ Responsabilidades:
 
 - listado de gastos
 - filtros y ordenación
+- filtro por pagador
+- edición de pagador opcional
 - importación masiva
 - exportación a Excel
 
@@ -235,6 +265,8 @@ Archivo clave: [src/pages/RecurringPayments.jsx](/Users/juancruzballadares/Deskt
 Responsabilidades:
 
 - CRUD de gastos fijos
+- selector y filtro de pagador opcional
+- muestra `Paga: nombre` cuando existe `payer_detail`
 - importación masiva
 - exportación de plantilla y datos existentes
 

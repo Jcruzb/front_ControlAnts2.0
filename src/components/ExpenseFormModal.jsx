@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getTodayLocalDate } from "../utils/date";
+import PayerSelect from "./PayerSelect";
 
 function buildInitialForm(expense) {
   return {
@@ -13,6 +14,10 @@ function buildInitialForm(expense) {
         ? String(expense.category)
         : "",
     date: expense?.date || getTodayLocalDate(),
+    payer:
+      expense?.payer !== null && expense?.payer !== undefined
+        ? String(expense.payer)
+        : "",
   };
 }
 
@@ -20,6 +25,8 @@ export default function ExpenseFormModal({
   isOpen,
   expense = null,
   categories = [],
+  payers = [],
+  payersError = null,
   loading = false,
   error = null,
   onClose,
@@ -35,12 +42,18 @@ export default function ExpenseFormModal({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await onSubmit({
+    const payload = {
       amount: Number(form.amount),
       description: form.description,
       category: form.category,
       date: form.date,
-    });
+    };
+
+    if (form.payer) {
+      payload.payer = Number(form.payer);
+    }
+
+    await onSubmit(payload);
   };
 
   return (
@@ -119,6 +132,22 @@ export default function ExpenseFormModal({
               className="w-full rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition focus:border-blue-400/50"
               required
             />
+          </div>
+
+          <div>
+            <PayerSelect
+              value={form.payer}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, payer: value }))
+              }
+              payers={payers}
+              disabled={loading}
+            />
+            {payersError ? (
+              <p className="mt-2 text-xs text-amber-200">
+                {payersError}. Puedes guardar sin seleccionar pagador.
+              </p>
+            ) : null}
           </div>
 
           {error ? (

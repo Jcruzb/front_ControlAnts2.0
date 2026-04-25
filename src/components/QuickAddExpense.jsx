@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import { useState } from "react";
 import { getRelativeLocalDate, getTodayLocalDate } from "../utils/date";
+import PayerSelect from "./PayerSelect";
 
 export default function QuickAddExpense({
   isOpen,
@@ -9,6 +10,8 @@ export default function QuickAddExpense({
   onSubmit,
   budgetYear,
   budgetMonth,
+  payers = [],
+  payersError = null,
 }) {
   if (!isOpen) return null;
 
@@ -36,6 +39,9 @@ export default function QuickAddExpense({
     return todayEnabled ? isoToday : minDate;
   });
   const [note, setNote] = useState("");
+  const [payer, setPayer] = useState(
+    context?.payer !== null && context?.payer !== undefined ? String(context.payer) : ""
+  );
 
   const handleSubmit = async () => {
     if (!amount || Number(amount) <= 0) return;
@@ -55,14 +61,20 @@ export default function QuickAddExpense({
       resolvedDate = customDate;
     }
 
-    await onSubmit({
+    const payload = {
       amount: Number(amount),
       date: resolvedDate,
       note,
       categoryId: context?.categoryId,
       plannedExpenseId: context?.plannedExpenseId ?? null,
       recurringPaymentId: context?.recurringPaymentId ?? null,
-    });
+    };
+
+    if (payer) {
+      payload.payer = Number(payer);
+    }
+
+    await onSubmit(payload);
 
     // reset UX
     setAmount("");
@@ -159,6 +171,19 @@ export default function QuickAddExpense({
             onChange={(e) => setNote(e.target.value)}
             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
           />
+        </div>
+
+        <div className="mb-6">
+          <PayerSelect
+            value={payer}
+            onChange={setPayer}
+            payers={payers}
+          />
+          {payersError ? (
+            <p className="mt-2 text-xs text-amber-200">
+              {payersError}. Puedes guardar sin seleccionar pagador.
+            </p>
+          ) : null}
         </div>
 
         <button

@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api, { getApiErrorMessage } from "../services/api";
 import { getCategories } from "../services/categories";
+import { getFamilyMembers } from "../services/familyMembers";
 import { getTodayLocalDate } from "../utils/date";
 import AddCategoryModal from "../components/AddCategoryModal";
+import PayerSelect from "../components/PayerSelect";
 
 const AddExpense = () => {
   const navigate = useNavigate();
@@ -11,23 +13,40 @@ const AddExpense = () => {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  const [payer, setPayer] = useState("");
   const [date, setDate] = useState(getTodayLocalDate);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [categories, setCategories] = useState([]);
+  const [payers, setPayers] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categoriesError, setCategoriesError] = useState(null);
+  const [payersError, setPayersError] = useState(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
 
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadFormOptions = async () => {
       setLoadingCategories(true);
       setCategoriesError(null);
+      setPayersError(null);
       try {
-        const data = await getCategories();
-        setCategories(data);
+        const [categoriesData, payersData] = await Promise.all([
+          getCategories(),
+          getFamilyMembers().catch((loadPayersError) => {
+            console.error(loadPayersError);
+            setPayersError(
+              getApiErrorMessage(
+                loadPayersError,
+                "No se pudieron cargar los pagadores"
+              )
+            );
+            return [];
+          }),
+        ]);
+        setCategories(categoriesData);
+        setPayers(payersData);
       } catch (loadError) {
         console.error(loadError);
         setCategoriesError(
@@ -37,7 +56,7 @@ const AddExpense = () => {
         setLoadingCategories(false);
       }
     };
-    loadCategories();
+    loadFormOptions();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -62,6 +81,9 @@ const AddExpense = () => {
         category,
         date,
       };
+      if (payer) {
+        payload.payer = Number(payer);
+      }
 
       await api.post("/expenses/", payload);
 
@@ -177,6 +199,20 @@ const AddExpense = () => {
               <option value="__new__">➕ Crear nueva categoría</option>
             </select>
           )}
+        </div>
+
+        <div>
+          <PayerSelect
+            value={payer}
+            onChange={setPayer}
+            payers={payers}
+            disabled={loadingCategories}
+          />
+          {payersError ? (
+            <p className="mt-2 text-xs text-amber-200">
+              {payersError}. Puedes guardar sin seleccionar pagador.
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-1">

@@ -15,6 +15,7 @@ import QuickAddIncome from "../components/QuickAddIncome";
 import MobilePrimaryAction from "../components/MobilePrimaryAction";
 import ListControls from "../components/ListControls";
 import { getCategories } from "../services/categories";
+import { getFamilyMembers } from "../services/familyMembers";
 import {
   createIncomePlan,
   adjustIncomePlan,
@@ -140,6 +141,21 @@ const EMPTY_BUDGET = {
   unplanned_total: 0,
 };
 
+function MetricLabel({ children, help }) {
+  return (
+    <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+      <span>{children}</span>
+      <span
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[10px] font-semibold normal-case tracking-normal text-slate-300"
+        title={help}
+        aria-label={help}
+      >
+        i
+      </span>
+    </p>
+  );
+}
+
 export default function Budget() {
   const {
     currentYear,
@@ -159,6 +175,8 @@ export default function Budget() {
   const [error, setError] = useState(null);
   const [budgetExpenses, setBudgetExpenses] = useState([]);
   const [expenseCategories, setExpenseCategories] = useState([]);
+  const [payers, setPayers] = useState([]);
+  const [payersError, setPayersError] = useState(null);
 
   const [incomes, setIncomes] = useState([]);
   const [incomesLoading, setIncomesLoading] = useState(true);
@@ -281,7 +299,7 @@ export default function Budget() {
     } catch (err) {
       console.error(err);
       setIncomePlanMonthError(
-        getApiErrorMessage(err, "No se pudieron cargar los sueldos planificados")
+        getApiErrorMessage(err, "No se pudieron cargar los salarios planificados")
       );
     } finally {
       setIncomePlanMonthLoading(false);
@@ -300,6 +318,15 @@ export default function Budget() {
       .catch((fetchError) => {
         console.error(fetchError);
       });
+    setPayersError(null);
+    getFamilyMembers()
+      .then((members) => setPayers(members))
+      .catch((fetchError) => {
+        console.error(fetchError);
+        setPayersError(
+          getApiErrorMessage(fetchError, "No se pudieron cargar los pagadores")
+        );
+      });
   }, [fetchBudget, fetchIncomePlanMonth, fetchIncomes, fetchBudgetExpenses]);
 
   async function handleQuickAddSubmit({
@@ -309,6 +336,7 @@ export default function Budget() {
     categoryId,
     plannedExpenseId,
     recurringPaymentId,
+    payer,
   }) {
     const payload = {
       amount,
@@ -318,6 +346,9 @@ export default function Budget() {
       planned_expense: plannedExpenseId,
       recurring_payment: recurringPaymentId,
     };
+    if (payer) {
+      payload.payer = Number(payer);
+    }
 
     console.log("[QuickAdd] Enviando gasto:", payload);
 
@@ -364,6 +395,7 @@ export default function Budget() {
         categoryId: item.category,
         plannedExpenseId: type === "planned" ? item.id : null,
         recurringPaymentId: type === "recurring" ? item.id : null,
+        payer: item.payer,
       });
     } catch (quickPayError) {
       console.error(quickPayError);
@@ -648,6 +680,27 @@ export default function Budget() {
     recurring,
     unplanned_total,
   } = budgetData;
+  const totalPlannedAmount = Number(total_planned || 0);
+  const plannedBalance = totalIncomeWithRecurring - totalPlannedAmount;
+  const plannedBalanceState =
+    plannedBalance > 0
+      ? "Excedente planificado"
+      : plannedBalance < 0
+      ? "Faltante planificado"
+      : "Equilibrio planificado";
+  const plannedBalanceLoading =
+    incomesLoading || (incomePlanMonthLoading && !data?.income_plan_month);
+  const plannedBalanceTone =
+    plannedBalanceLoading
+      ? "border-white/10 bg-white/[0.04] text-slate-300"
+      : plannedBalance > 0
+      ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
+      : plannedBalance < 0
+      ? "border-red-400/20 bg-red-500/10 text-red-200"
+      : "border-blue-400/20 bg-blue-500/10 text-blue-200";
+  const plannedBalanceText = plannedBalanceLoading
+    ? "Calculando..."
+    : `${plannedBalanceState}: ${plannedBalance.toFixed(2)} €`;
 
   const budgetCategoryOptions = useMemo(() => {
     const categoryMap = new Map();
@@ -831,7 +884,7 @@ export default function Budget() {
     } catch (err) {
       console.error(err);
       setIncomePlanMonthError(
-        getApiErrorMessage(err, "No se pudo confirmar el sueldo planificado")
+        getApiErrorMessage(err, "No se pudo confirmar el salario planificado")
       );
     } finally {
       setActiveIncomePlanAction(null);
@@ -855,7 +908,7 @@ export default function Budget() {
     } catch (err) {
       console.error(err);
       setAdjustModalError(
-        getApiErrorMessage(err, "No se pudo ajustar el sueldo planificado")
+        getApiErrorMessage(err, "No se pudo ajustar el salario planificado")
       );
     } finally {
       setAdjustModalLoading(false);
@@ -904,7 +957,7 @@ export default function Budget() {
     } catch (err) {
       console.error(err);
       setCreatePlanError(
-        getApiErrorMessage(err, "No se pudo crear el sueldo recurrente")
+        getApiErrorMessage(err, "No se pudo crear el salario recurrente")
       );
     } finally {
       setCreatePlanLoading(false);
@@ -917,7 +970,7 @@ export default function Budget() {
       const plannedAmount = Number(payload.amount);
 
       if (!planId) {
-        setCreatePlanError("No se pudo identificar el sueldo a editar");
+        setCreatePlanError("No se pudo identificar el salario a editar");
         return;
       }
 
@@ -950,7 +1003,7 @@ export default function Budget() {
       } catch (err) {
         console.error(err);
         setCreatePlanError(
-          getApiErrorMessage(err, "No se pudo editar el sueldo recurrente")
+          getApiErrorMessage(err, "No se pudo editar el salario recurrente")
         );
       } finally {
         setCreatePlanLoading(false);
@@ -966,7 +1019,7 @@ export default function Budget() {
     const planId = item?.plan_id;
     if (!planId) return;
 
-    if (!window.confirm("¿Eliminar este sueldo recurrente?")) return;
+    if (!window.confirm("¿Eliminar este salario recurrente?")) return;
 
     try {
       setIncomePlanMonthError(null);
@@ -975,7 +1028,7 @@ export default function Budget() {
     } catch (err) {
       console.error(err);
       setIncomePlanMonthError(
-        getApiErrorMessage(err, "No se pudo eliminar el sueldo recurrente")
+        getApiErrorMessage(err, "No se pudo eliminar el salario recurrente")
       );
     }
   }
@@ -1009,37 +1062,51 @@ export default function Budget() {
               <p className={`mt-3 text-sm font-medium ${statusColor}`}>
                 {statusText}
               </p>
+              <div
+                className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${plannedBalanceTone}`}
+                title="Balance planificado: ingresos previstos menos gastos planificados del mes."
+              >
+                {plannedBalanceText}
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <MetricLabel help="Ingresos reales registrados más ingresos recurrentes pendientes de resolver.">
                   Ingresos
-                </p>
+                </MetricLabel>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
                   {totalIncomeWithRecurring.toFixed(0)} €
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                  Gastado
+                <MetricLabel help="Gastos previstos o planificados para el mes.">
+                  Planificado
+                </MetricLabel>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
+                  {totalPlannedAmount.toFixed(0)} €
                 </p>
+              </div>
+              <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
+                <MetricLabel help="Gastos ya registrados como pagos del mes.">
+                  Pagado
+                </MetricLabel>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
                   {totalSpent} €
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <MetricLabel help="Importe restante devuelto por el presupuesto actual.">
                   Disponible
-                </p>
+                </MetricLabel>
                 <p className={`mt-2 text-2xl font-semibold tracking-tight ${statusColor}`}>
                   {remaining_amount} €
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <MetricLabel help="Ingresos previstos/reales considerados menos gastos ya pagados.">
                   Balance
-                </p>
+                </MetricLabel>
                 <p
                   className={`mt-2 text-2xl font-semibold tracking-tight ${
                     net >= 0 ? "text-emerald-300" : "text-red-300"
@@ -1286,6 +1353,8 @@ export default function Budget() {
                     budgetYear={year}
                     budgetMonth={month}
                     onOpenDetails={openBudgetItemDetail}
+                    payers={payers}
+                    payersError={payersError}
                   />
                   );
                 })}
@@ -1331,6 +1400,8 @@ export default function Budget() {
                       budgetYear={year}
                       budgetMonth={month}
                       onOpenDetails={openBudgetItemDetail}
+                      payers={payers}
+                      payersError={payersError}
                     />
                     );
                   })
@@ -1349,7 +1420,7 @@ export default function Budget() {
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
-                  Sueldos planificados
+                  Salarios planificados
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
                   Resolución mensual
@@ -1368,7 +1439,7 @@ export default function Budget() {
                   }}
                   className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 sm:w-auto"
                 >
-                  + Crear sueldo recurrente
+                  + Crear salario recurrente
                 </button>
                 {normalizedIncomePlanMonth.isClosed && (
                   <span className="self-start rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-medium text-slate-300 sm:self-auto">
@@ -1380,14 +1451,14 @@ export default function Budget() {
 
             <div className="mt-5 space-y-3">
               {incomePlanMonthLoading ? (
-                <p className="text-sm text-slate-400">Cargando sueldos planificados...</p>
+                <p className="text-sm text-slate-400">Cargando salarios planificados...</p>
               ) : incomePlanMonthError ? (
                 <p className="rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-200">
                   {incomePlanMonthError}
                 </p>
               ) : normalizedIncomePlanMonth.items.length === 0 ? (
                 <div className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
-                  No hay sueldos planificados para este mes.
+                  No hay salarios planificados para este mes.
                 </div>
               ) : (
                 <>
@@ -1468,7 +1539,7 @@ export default function Budget() {
         loading={createPlanLoading}
         error={createPlanError}
         title={editingIncomePlan ? "Editar ingreso planificado" : "Crear ingreso planificado"}
-        subtitle={editingIncomePlan ? "Sueldo recurrente existente" : "Sueldo recurrente"}
+        subtitle={editingIncomePlan ? "Salario recurrente existente" : "Salario recurrente"}
         submitLabel={editingIncomePlan ? "Guardar cambios" : "Crear plan"}
       />
 
@@ -1513,6 +1584,14 @@ export default function Budget() {
                     getBudgetPaymentState(budgetDetailState.item)
                   ),
                 },
+                ...(budgetDetailState.item?.payer_detail?.name
+                  ? [
+                      {
+                        label: "Pagador",
+                        value: budgetDetailState.item.payer_detail.name,
+                      },
+                    ]
+                  : []),
               ]
             : []
         }
@@ -1534,6 +1613,8 @@ export default function Budget() {
         isOpen={Boolean(editingBudgetPayment)}
         expense={editingBudgetPayment}
         categories={expenseCategories}
+        payers={payers}
+        payersError={payersError}
         loading={budgetPaymentFormLoading}
         error={budgetPaymentFormError}
         onClose={() => {

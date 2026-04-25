@@ -1,21 +1,7 @@
 import { useState } from "react";
 import { createCategory } from "../services/categories";
 import { getApiErrorMessage } from "../services/api";
-
-const EMOJI_PRESETS = [
-  "🏠",
-  "🛒",
-  "🍽️",
-  "🚗",
-  "💡",
-  "📚",
-  "🎉",
-  "🏥",
-  "🐶",
-  "💼",
-  "💰",
-  "📦",
-];
+import CategoryIconPicker from "./CategoryIconPicker";
 
 const AddCategoryModal = ({ onClose, onCreated }) => {
   const [name, setName] = useState("");
@@ -74,45 +60,11 @@ const AddCategoryModal = ({ onClose, onCreated }) => {
             />
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <label className="block text-sm font-medium text-slate-200">
-                Emoticono
-              </label>
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-300">
-                Vista previa: {icon || "🙂"}
-              </div>
-            </div>
-
-            <input
-              type="text"
-              placeholder="Ej: 🍎"
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
-            />
-
-            <div className="grid grid-cols-6 gap-2">
-              {EMOJI_PRESETS.map((emoji) => {
-                const active = icon === emoji;
-
-                return (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => setIcon(emoji)}
-                    className={`rounded-2xl border px-3 py-2 text-xl transition ${
-                      active
-                        ? "border-blue-400/30 bg-blue-500/12"
-                        : "border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
-                    }`}
-                  >
-                    {emoji}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <CategoryIconPicker
+            value={icon}
+            onChange={setIcon}
+            disabled={loading}
+          />
 
           {error && (
             <div className="rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">

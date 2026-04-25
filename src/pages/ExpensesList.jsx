@@ -11,6 +11,7 @@ import api, {
   unwrapCollectionResponse,
 } from "../services/api";
 import { getCategories } from "../services/categories";
+import { getFamilyMembers } from "../services/familyMembers";
 import { getTodayLocalDate } from "../utils/date";
 import {
   buildCategoryLookup,
@@ -58,9 +59,18 @@ function getExpenseCategoryIcon(expense) {
   return expense?.is_recurring === true ? "🔁" : "💸";
 }
 
+function getExpensePayerName(expense) {
+  if (typeof expense?.payer_detail?.name === "string" && expense.payer_detail.name.trim()) {
+    return expense.payer_detail.name;
+  }
+
+  return null;
+}
+
 function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
   const title = expense.description || "Gasto";
   const subtitle = getExpenseCategoryName(expense);
+  const payerName = getExpensePayerName(expense);
   const handleCardClick = (event) => {
     if (typeof onOpenDetails !== "function") return;
 
@@ -95,6 +105,9 @@ function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
             {title}
           </p>
           <p className="text-sm text-slate-400">{subtitle}</p>
+          {payerName ? (
+            <p className="text-xs text-slate-500">Paga: {payerName}</p>
+          ) : null}
           <p className="text-xs text-slate-500">{expense.date}</p>
         </div>
       </div>
@@ -143,9 +156,12 @@ const ExpensesList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [payers, setPayers] = useState([]);
+  const [payersError, setPayersError] = useState(null);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("date_desc");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [payerFilter, setPayerFilter] = useState("all");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkImportMessage, setBulkImportMessage] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -153,12 +169,19 @@ const ExpensesList = () => {
   const [formError, setFormError] = useState(null);
   const [detailExpense, setDetailExpense] = useState(null);
 
-  const fetchExpenses = useCallback(async ({ silent = false, includeCategories = false } = {}) => {
+  const fetchExpenses = useCallback(async ({
+    silent = false,
+    includeCategories = false,
+    includePayers = false,
+  } = {}) => {
     try {
       if (!silent) {
         setLoading(true);
       }
       setError(null);
+      if (includePayers) {
+        setPayersError(null);
+      }
 
       const data = await api.get("/expenses/", {
         params: { year, month },
@@ -167,8 +190,25 @@ const ExpensesList = () => {
       setExpenses(unwrapCollectionResponse(data));
 
       if (includeCategories) {
-        const categoriesData = await getCategories();
+        const [categoriesData, payersData] = await Promise.all([
+          getCategories(),
+          includePayers
+            ? getFamilyMembers().catch((loadPayersError) => {
+                console.error(loadPayersError);
+                setPayersError(
+                  getApiErrorMessage(
+                    loadPayersError,
+                    "No se pudieron cargar los pagadores"
+                  )
+                );
+                return [];
+              })
+            : Promise.resolve([]),
+        ]);
         setCategories(categoriesData);
+        if (includePayers) {
+          setPayers(payersData);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -181,7 +221,7 @@ const ExpensesList = () => {
   }, [month, year]);
 
   useEffect(() => {
-    fetchExpenses({ includeCategories: true });
+    fetchExpenses({ includeCategories: true, includePayers: true });
   }, [fetchExpenses]);
 
   const categoryLookup = useMemo(
@@ -199,6 +239,7 @@ const ExpensesList = () => {
     const result = expenses.filter((expense) => {
       const categoryName = getExpenseCategoryName(expense).toLowerCase();
       const description = String(expense.description || "Gasto").toLowerCase();
+      const payerId = expense?.payer != null ? String(expense.payer) : "";
 
       const matchesSearch =
         normalizedSearch.length === 0 ||
@@ -209,8 +250,9 @@ const ExpensesList = () => {
         typeFilter === "all" ||
         (typeFilter === "recurring" && expense.is_recurring === true) ||
         (typeFilter === "manual" && expense.is_recurring !== true);
+      const matchesPayer = payerFilter === "all" || payerId === payerFilter;
 
-      return matchesSearch && matchesType;
+      return matchesSearch && matchesType && matchesPayer;
     });
 
     result.sort((a, b) => {
@@ -238,9 +280,26 @@ const ExpensesList = () => {
     });
 
     return result;
-  }, [expenses, search, sortBy, typeFilter]);
+  }, [expenses, search, sortBy, typeFilter, payerFilter]);
 
-  const hasActiveFilters = search.trim().length > 0 || sortBy !== "date_desc" || typeFilter !== "all";
+  const payerOptions = useMemo(
+    () => [
+      { value: "all", label: "Todos los pagadores" },
+      ...payers
+        .map((payer) => ({
+          value: String(payer.id),
+          label: payer.name || payer.email || "Sin nombre",
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, "es")),
+    ],
+    [payers]
+  );
+
+  const hasActiveFilters =
+    search.trim().length > 0 ||
+    sortBy !== "date_desc" ||
+    typeFilter !== "all" ||
+    payerFilter !== "all";
 
   async function downloadExpenseTemplate() {
     await downloadWorkbook("plantilla-gastos.xlsx", [
@@ -436,11 +495,11 @@ const ExpensesList = () => {
     try {
       setFormLoading(true);
       setFormError(null);
-      await api.patch(`/expenses/${editingExpense.id}/`, {
+      const response = await api.patch(`/expenses/${editingExpense.id}/`, {
         ...payload,
         category: Number(payload.category),
       });
-      const updatedExpense = {
+      const updatedExpense = response ?? {
         ...editingExpense,
         ...payload,
         category: Number(payload.category),
@@ -595,6 +654,10 @@ const ExpensesList = () => {
             { value: "manual", label: "Puntuales" },
             { value: "recurring", label: "Recurrentes" },
           ]}
+          extraSelectValue={payerFilter}
+          onExtraSelectChange={setPayerFilter}
+          extraSelectLabel="Pagador"
+          extraSelectOptions={payerOptions}
           resultsCount={filteredExpenses.length}
           totalCount={expenses.length}
           hasActiveFilters={hasActiveFilters}
@@ -602,6 +665,7 @@ const ExpensesList = () => {
             setSearch("");
             setSortBy("date_desc");
             setTypeFilter("all");
+            setPayerFilter("all");
           }}
         />
       )}
@@ -662,6 +726,8 @@ const ExpensesList = () => {
         isOpen={Boolean(editingExpense)}
         expense={editingExpense}
         categories={categories}
+        payers={payers}
+        payersError={payersError}
         loading={formLoading}
         error={formError}
         onClose={() => {
@@ -688,6 +754,14 @@ const ExpensesList = () => {
                       ? "Pago recurrente"
                       : "Gasto puntual",
                 },
+                ...(getExpensePayerName(detailExpense)
+                  ? [
+                      {
+                        label: "Pagador",
+                        value: getExpensePayerName(detailExpense),
+                      },
+                    ]
+                  : []),
               ]
             : []
         }

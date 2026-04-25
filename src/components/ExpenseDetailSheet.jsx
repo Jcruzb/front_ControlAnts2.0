@@ -136,6 +136,11 @@ export default function ExpenseDetailSheet({
               <div className="mt-4 space-y-3">
                 {sortedPayments.map((payment) => {
                   const categoryLabel = getPaymentCategoryLabel?.(payment) || null;
+                  const payerName =
+                    typeof payment?.payer_detail?.name === "string" &&
+                    payment.payer_detail.name.trim()
+                      ? payment.payer_detail.name
+                      : null;
 
                   return (
                     <div
@@ -152,6 +157,11 @@ export default function ExpenseDetailSheet({
                             {categoryLabel ? (
                               <span className="rounded-full border border-white/8 bg-black/20 px-2.5 py-1">
                                 {categoryLabel}
+                              </span>
+                            ) : null}
+                            {payerName ? (
+                              <span className="rounded-full border border-white/8 bg-black/20 px-2.5 py-1">
+                                Paga: {payerName}
                               </span>
                             ) : null}
                           </div>

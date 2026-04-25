@@ -37,7 +37,7 @@ export default function CreateIncomePlanModal({
   loading = false,
   error = null,
   title = "Crear ingreso planificado",
-  subtitle = "Sueldo recurrente",
+  subtitle = "Salario recurrente",
   submitLabel = "Crear plan",
 }) {
   const [categories, setCategories] = useState([]);
@@ -114,7 +114,7 @@ export default function CreateIncomePlanModal({
       <div className="w-full rounded-[32px] border border-white/10 bg-[#0d1117] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:max-w-lg">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-slate-400">Sueldo recurrente</p>
+            <p className="text-sm text-slate-400">Salario recurrente</p>
             <h3 className="text-lg font-semibold tracking-tight text-white">
               {title}
             </h3>

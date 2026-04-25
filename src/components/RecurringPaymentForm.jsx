@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AddCategoryModal from "./AddCategoryModal";
+import PayerSelect from "./PayerSelect";
 
 /**
  * RecurringPaymentForm
@@ -21,6 +22,8 @@ export default function RecurringPaymentForm({
   onSubmit,
   initialData = null,
   categories = [],
+  payers = [],
+  payersError = null,
   onCategoryCreated,
 }) {
   const isEdit = Boolean(initialData);
@@ -30,6 +33,10 @@ export default function RecurringPaymentForm({
     amount: initialData?.amount || "",
     dueDay: initialData?.due_day || "",
     category: initialData?.category || "",
+    payer:
+      initialData?.payer !== null && initialData?.payer !== undefined
+        ? String(initialData.payer)
+        : "",
     startDate: initialData?.start_date || "",
     hasEndDate: Boolean(initialData?.end_date),
     endDate: initialData?.end_date || "",
@@ -39,6 +46,7 @@ export default function RecurringPaymentForm({
   const [amount, setAmount] = useState(() => getInitialFormState().amount);
   const [dueDay, setDueDay] = useState(() => getInitialFormState().dueDay);
   const [category, setCategory] = useState(() => getInitialFormState().category);
+  const [payer, setPayer] = useState(() => getInitialFormState().payer);
   const [startDate, setStartDate] = useState(() => getInitialFormState().startDate);
   const [hasEndDate, setHasEndDate] = useState(() => getInitialFormState().hasEndDate);
   const [endDate, setEndDate] = useState(() => getInitialFormState().endDate);
@@ -57,6 +65,9 @@ export default function RecurringPaymentForm({
       start_date: startDate,
       end_date: hasEndDate ? endDate : null,
     };
+    if (payer) {
+      payload.payer = Number(payer);
+    }
 
     onSubmit(payload);
   };
@@ -162,6 +173,19 @@ export default function RecurringPaymentForm({
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <PayerSelect
+              value={payer}
+              onChange={setPayer}
+              payers={payers}
+            />
+            {payersError ? (
+              <p className="mt-2 text-xs text-amber-200">
+                {payersError}. Puedes guardar sin seleccionar pagador.
+              </p>
+            ) : null}
           </div>
 
           <div>

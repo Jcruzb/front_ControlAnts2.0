@@ -38,6 +38,10 @@ export default function RecurringPaymentItem({
   } = item;
 
   const categoryInfo = categoryMap[category];
+  const payerName =
+    typeof item?.payer_detail?.name === "string" && item.payer_detail.name.trim()
+      ? item.payer_detail.name
+      : null;
   const actionLabel = active ? "Desactivar" : "Reactivar";
   const handleSecondaryAction = () => {
     if (active) {
@@ -84,6 +88,9 @@ export default function RecurringPaymentItem({
               <p className="mt-1 text-sm text-slate-400">
                 {categoryInfo?.name || "Sin categoría"}
               </p>
+              {payerName ? (
+                <p className="mt-1 text-xs text-slate-500">Paga: {payerName}</p>
+              ) : null}
               <div className="mt-2">
                 <span className="inline-flex rounded-full border border-white/8 bg-black/20 px-2.5 py-1 text-xs font-medium text-slate-400">
                   {end_date

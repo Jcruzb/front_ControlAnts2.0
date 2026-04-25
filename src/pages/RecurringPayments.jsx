@@ -8,6 +8,7 @@ import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
 import ExpenseFormModal from "../components/ExpenseFormModal";
 import api, { getApiErrorMessage } from "../services/api";
 import { getCategories } from "../services/categories";
+import { getFamilyMembers } from "../services/familyMembers";
 import { getTodayLocalDate } from "../utils/date";
 import {
   buildCategoryLookup,
@@ -30,6 +31,8 @@ import {
 export default function RecurringPayments() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [payers, setPayers] = useState([]);
+  const [payersError, setPayersError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -39,6 +42,8 @@ export default function RecurringPayments() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("name_asc");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [payerFilter, setPayerFilter] = useState("all");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkImportMessage, setBulkImportMessage] = useState(null);
   const [detailState, setDetailState] = useState({
@@ -53,10 +58,40 @@ export default function RecurringPayments() {
   const activeDetailRequestRef = useRef(0);
 
   // Mapa rápido de categorías por id
-  const categoryMap = categories.reduce((acc, cat) => {
-    acc[cat.id] = cat;
-    return acc;
-  }, {});
+  const categoryMap = useMemo(
+    () =>
+      categories.reduce((acc, cat) => {
+        acc[cat.id] = cat;
+        return acc;
+      }, {}),
+    [categories]
+  );
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: "all", label: "Todas las categorías" },
+      ...categories
+        .map((category) => ({
+          value: String(category.id),
+          label: category.name || "Sin categoría",
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, "es")),
+    ],
+    [categories]
+  );
+
+  const payerOptions = useMemo(
+    () => [
+      { value: "all", label: "Todos los pagadores" },
+      ...payers
+        .map((payer) => ({
+          value: String(payer.id),
+          label: payer.name || payer.email || "Sin nombre",
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, "es")),
+    ],
+    [payers]
+  );
 
   const filteredItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -66,12 +101,18 @@ export default function RecurringPayments() {
     const result = items.filter((item) => {
       const categoryName = String(categoryMap[item.category]?.name || "Sin categoría").toLowerCase();
       const name = String(item.name || "").toLowerCase();
+      const description = String(item.description || "").toLowerCase();
       const hasEndDate = Boolean(item.end_date);
       const isEnded = hasEndDate && new Date(item.end_date) < today;
+      const matchesCategory =
+        categoryFilter === "all" || String(item.category) === categoryFilter;
+      const matchesPayer =
+        payerFilter === "all" || String(item.payer ?? "") === payerFilter;
 
       const matchesSearch =
         normalizedSearch.length === 0 ||
         name.includes(normalizedSearch) ||
+        description.includes(normalizedSearch) ||
         categoryName.includes(normalizedSearch);
 
       const matchesStatus =
@@ -82,7 +123,7 @@ export default function RecurringPayments() {
         (statusFilter === "without_end_date" && !hasEndDate) ||
         (statusFilter === "ended" && isEnded);
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesCategory && matchesPayer;
     });
 
     result.sort((a, b) => {
@@ -100,35 +141,69 @@ export default function RecurringPayments() {
     });
 
     return result;
-  }, [items, search, sortBy, statusFilter, categoryMap]);
+  }, [items, search, sortBy, statusFilter, categoryFilter, payerFilter, categoryMap]);
 
   const hasActiveFilters =
-    search.trim().length > 0 || sortBy !== "name_asc" || statusFilter !== "all";
+    search.trim().length > 0 ||
+    sortBy !== "name_asc" ||
+    statusFilter !== "all" ||
+    categoryFilter !== "all" ||
+    payerFilter !== "all";
 
   const categoryLookup = useMemo(
     () => buildCategoryLookup(categories),
     [categories]
   );
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
-      const [recurring, cats] = await Promise.all([
+      setPayersError(null);
+      const [recurring, cats, members] = await Promise.all([
         recurringPaymentsService.getAll(),
         getCategories(),
+        getFamilyMembers().catch((loadPayersError) => {
+          console.error(loadPayersError);
+          setPayersError(
+            getApiErrorMessage(loadPayersError, "No se pudieron cargar los pagadores")
+          );
+          return [];
+        }),
       ]);
       setItems(recurring);
       setCategories(cats);
+      setPayers(members);
     } catch (loadError) {
       console.error("Error cargando gastos fijos", loadError);
       setError(
         getApiErrorMessage(loadError, "No se pudieron cargar los gastos fijos")
       );
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
+
+  const mergeRecurringItem = (savedItem, fallbackId = null) => {
+    if (!savedItem) return;
+
+    setItems((current) => {
+      const savedId = savedItem.id ?? fallbackId;
+      const exists = current.some((item) => item.id === savedId);
+
+      if (exists) {
+        return current.map((item) =>
+          item.id === savedId ? { ...item, ...savedItem } : item
+        );
+      }
+
+      return [savedItem, ...current];
+    });
+  };
 
   useEffect(() => {
     loadData();
@@ -155,12 +230,17 @@ export default function RecurringPayments() {
     try {
       setError(null);
       if (editingItem) {
-        await recurringPaymentsService.update(editingItem.id, data);
+        const updatedItem = await recurringPaymentsService.update(editingItem.id, data);
+        mergeRecurringItem(updatedItem ?? { ...editingItem, ...data }, editingItem.id);
       } else {
-        await recurringPaymentsService.create(data);
+        const createdItem = await recurringPaymentsService.create(data);
+        if (createdItem?.id) {
+          mergeRecurringItem(createdItem);
+        } else {
+          await loadData({ silent: true });
+        }
       }
       closeModal();
-      loadData();
     } catch (submitError) {
       console.error("Error guardando gasto fijo", submitError);
       setError(
@@ -175,7 +255,7 @@ export default function RecurringPayments() {
     try {
       setError(null);
       await recurringPaymentsService.deactivate(id);
-      loadData();
+      loadData({ silent: true });
     } catch (deactivateError) {
       console.error("Error desactivando gasto fijo", deactivateError);
       setError(
@@ -191,7 +271,7 @@ export default function RecurringPayments() {
     try {
       setError(null);
       await recurringPaymentsService.reactivate(id);
-      loadData();
+      loadData({ silent: true });
     } catch (reactivateError) {
       console.error("Error reactivando gasto fijo", reactivateError);
       setError(
@@ -616,7 +696,7 @@ export default function RecurringPayments() {
         <ListControls
           searchValue={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Buscar por nombre o categoría"
+          searchPlaceholder="Buscar por nombre, descripción o categoría"
           sortValue={sortBy}
           onSortChange={setSortBy}
           sortOptions={[
@@ -635,6 +715,14 @@ export default function RecurringPayments() {
             { value: "without_end_date", label: "Sin fecha fin" },
             { value: "ended", label: "Finalizados" },
           ]}
+          extraSelectValue={categoryFilter}
+          onExtraSelectChange={setCategoryFilter}
+          extraSelectLabel="Categoría"
+          extraSelectOptions={categoryOptions}
+          secondarySelectValue={payerFilter}
+          onSecondarySelectChange={setPayerFilter}
+          secondarySelectLabel="Pagador"
+          secondarySelectOptions={payerOptions}
           resultsCount={filteredItems.length}
           totalCount={items.length}
           hasActiveFilters={hasActiveFilters}
@@ -642,6 +730,8 @@ export default function RecurringPayments() {
             setSearch("");
             setSortBy("name_asc");
             setStatusFilter("all");
+            setCategoryFilter("all");
+            setPayerFilter("all");
           }}
         />
       ) : null}
@@ -688,6 +778,8 @@ export default function RecurringPayments() {
         onSubmit={handleSubmit}
         initialData={editingItem}
         categories={categories}
+        payers={payers}
+        payersError={payersError}
         onCategoryCreated={(newCategory) => {
           setCategories((prev) => [newCategory, ...prev]);
         }}
@@ -749,6 +841,14 @@ export default function RecurringPayments() {
                   label: "Estado",
                   value: detailState.data.active ? "Activo" : "Inactivo",
                 },
+                ...(detailState.data.payer_detail?.name
+                  ? [
+                      {
+                        label: "Pagador",
+                        value: detailState.data.payer_detail.name,
+                      },
+                    ]
+                  : []),
               ]
             : []
         }
@@ -772,6 +872,8 @@ export default function RecurringPayments() {
         isOpen={Boolean(editingPayment)}
         expense={editingPayment}
         categories={categories}
+        payers={payers}
+        payersError={payersError}
         loading={paymentFormLoading}
         error={paymentFormError}
         onClose={() => {

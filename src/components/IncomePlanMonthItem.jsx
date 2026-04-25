@@ -60,7 +60,7 @@ export default function IncomePlanMonthItem({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="min-w-0 truncate text-base font-semibold tracking-tight text-white">
-              {item?.name || "Sueldo planificado"}
+              {item?.name || "Salario planificado"}
             </h3>
             <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusMeta.badge}`}>
               {statusMeta.label}
@@ -129,7 +129,7 @@ export default function IncomePlanMonthItem({
 
       {status === "MISSING_VERSION" ? (
         <div className="mt-4 rounded-[24px] border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-          No existe una versión activa para este sueldo en el mes seleccionado.
+          No existe una versión activa para este salario en el mes seleccionado.
         </div>
       ) : null}
 
@@ -137,7 +137,7 @@ export default function IncomePlanMonthItem({
         <div className="mt-4">
           {!canResolve ? (
             <div className="rounded-[24px] border border-white/8 bg-black/20 p-4 text-sm text-slate-300">
-              Este mes está cerrado o no permite resolver sueldos desde el frontend.
+              Este mes está cerrado o no permite resolver salarios desde el frontend.
             </div>
           ) : (
             <div className="flex flex-col gap-2 sm:flex-row">
