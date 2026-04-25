@@ -143,16 +143,20 @@ const EMPTY_BUDGET = {
 
 function MetricLabel({ children, help }) {
   return (
-    <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+    <div className="group relative flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-500">
       <span>{children}</span>
-      <span
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[10px] font-semibold normal-case tracking-normal text-slate-300"
+      <button
+        type="button"
+        className="peer inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[10px] font-semibold normal-case tracking-normal text-slate-300 outline-none transition hover:border-blue-300/30 hover:text-white focus:border-blue-300/40 focus:text-white"
         title={help}
         aria-label={help}
       >
         i
+      </button>
+      <span className="pointer-events-none absolute left-0 top-7 z-20 w-[min(72vw,260px)] rounded-2xl border border-white/10 bg-[#111823] px-3 py-2 text-left text-xs normal-case leading-relaxed tracking-normal text-slate-200 opacity-0 shadow-[0_18px_40px_rgba(0,0,0,0.45)] transition group-hover:opacity-100 peer-focus:opacity-100">
+        {help}
       </span>
-    </p>
+    </div>
   );
 }
 
@@ -1072,7 +1076,7 @@ export default function Budget() {
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Ingresos reales registrados más ingresos recurrentes pendientes de resolver.">
+                <MetricLabel help="Ingresos planificados y registrados para este mes. Incluye ingresos reales y recurrentes pendientes de confirmar.">
                   Ingresos
                 </MetricLabel>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
@@ -1080,7 +1084,7 @@ export default function Budget() {
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Gastos previstos o planificados para el mes.">
+                <MetricLabel help="Gastos planificados para este mes: partidas previstas y gastos fijos incluidos en el presupuesto.">
                   Planificado
                 </MetricLabel>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
@@ -1088,7 +1092,7 @@ export default function Budget() {
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Gastos ya registrados como pagos del mes.">
+                <MetricLabel help="Gastos ya registrados como pagados durante este mes.">
                   Pagado
                 </MetricLabel>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
@@ -1096,15 +1100,15 @@ export default function Budget() {
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Importe restante devuelto por el presupuesto actual.">
-                  Disponible
+                <MetricLabel help="Importe planificado que todavía queda pendiente por pagar este mes.">
+                  Por pagar
                 </MetricLabel>
                 <p className={`mt-2 text-2xl font-semibold tracking-tight ${statusColor}`}>
                   {remaining_amount} €
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Ingresos previstos/reales considerados menos gastos ya pagados.">
+                <MetricLabel help="Diferencia entre los ingresos considerados y los gastos ya pagados.">
                   Balance
                 </MetricLabel>
                 <p
