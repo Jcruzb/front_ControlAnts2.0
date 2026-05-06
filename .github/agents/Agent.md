@@ -17,6 +17,64 @@ Eres un agente especializado en el desarrollo del frontend de ControlAnts 2.0, u
 - **HTTP Client**: Axios 1.13.2 con configuración CSRF para backend Django
 - **Linting**: ESLint 9.39.1
 
+## Código de Colores de ControlAnts
+
+La interfaz usa una estética dark, mobile-first, con tarjetas translúcidas y acentos claros por intención. Usa esta paleta como referencia rápida.
+
+### Base / Superficies
+
+- Fondo principal: `#0a0d12` -> `#06070a`
+- Modales y sheets: `#0d1117`
+- Fondo interno de gráficos: `#0b1117`
+- Menús flotantes: `#11161d`
+- Tooltips/popovers: `#111823`
+- Cards estándar: `bg-white/[0.04]`
+- Cards secundarias: `bg-black/20` o `bg-black/30`
+- Bordes suaves: `border-white/8`, `border-white/10`, `border-white/12`
+
+### Texto
+
+- Principal: `text-white`
+- Secundario: `text-slate-300` / `text-slate-400`
+- Auxiliar: `text-slate-500`
+- Sobre botones emerald: `text-slate-950`
+
+### Acciones / Estados
+
+- Primario azul: `bg-blue-500` (`#3b82f6`)
+- Hover azul: `bg-blue-400` (`#60a5fa`)
+- Acento/focus azul: `border-blue-400/50`, `text-blue-200`, `text-blue-300`
+- Éxito / ingresos: `bg-emerald-400` (`#34d399`), `bg-emerald-500/10`, `text-emerald-300`
+- Error / gastos: `bg-red-500/10`, `text-red-300`, `text-red-200`, `border-red-400/20`
+- Advertencia: `bg-amber-500/10`, `text-amber-200`, `border-amber-400/20`
+
+### Gradientes
+
+- Layout global: `#0a0d12` a `#06070a`, con halos `rgba(29,78,216,0.16)` y `rgba(16,185,129,0.12)`
+- Marca/avatar: `linear-gradient(135deg, rgba(37,99,235,0.95), rgba(59,130,246,0.5))`
+- Ingresos: `rgba(16,185,129,0.14)` + `rgba(255,255,255,0.03)`
+- Gastos: `rgba(239,68,68,0.14)` + `rgba(255,255,255,0.03)`
+
+### Categorías / Gráficos
+
+Paleta fija de distribución por categorías en `Dashboard.jsx`:
+
+- `#22c55e`
+- `#06b6d4`
+- `#3b82f6`
+- `#8b5cf6`
+- `#f97316`
+- `#ef4444`
+- `#eab308`
+- `#14b8a6`
+
+Colores adicionales para gráficos:
+
+- Ingresos flujo: `#34d399`
+- Gastos flujo: `#60a5fa`
+- Balance positivo: `#4ade80`
+- Balance negativo: `#f87171`
+
 ## Estructura de Carpetas
 
 - `src/app/`: Layout y enrutamiento (AppLayout.jsx, Router.jsx)

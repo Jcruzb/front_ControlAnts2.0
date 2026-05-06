@@ -26,6 +26,67 @@ El frontend depende de un backend Django bajo el prefijo `/api/` y trabaja con s
 - `Tailwind CSS 4`
 - `xlsx` para importación/exportación
 
+## Código de colores
+
+La app usa una UI oscura con superficies translúcidas y acentos por estado. Mantener esta paleta salvo que se esté trabajando en una revisión visual explícita.
+
+### Base / superficies
+
+- Fondo principal: `#0a0d12` -> `#06070a`
+- Fondo de modales y paneles densos: `#0d1117`
+- Fondo circular/dashboard interno: `#0b1117`
+- Menús flotantes: `#11161d`
+- Tooltips/popovers: `#111823`
+- Superficie estándar: `bg-white/[0.04]`
+- Superficie secundaria: `bg-black/20` o `bg-black/30`
+- Bordes suaves: `border-white/8`, `border-white/10`, `border-white/12`
+
+### Texto
+
+- Texto principal: `text-white`
+- Texto secundario: `text-slate-300` / `text-slate-400`
+- Texto auxiliar: `text-slate-500`
+- Texto sobre botones claros emerald: `text-slate-950`
+
+### Acciones y estados
+
+- Acción primaria azul: `bg-blue-500` (`#3b82f6`)
+- Hover azul: `bg-blue-400` (`#60a5fa`)
+- Focus/acento azul suave: `border-blue-400/50`, `text-blue-200`, `text-blue-300`
+- Éxito / ingresos: `bg-emerald-400` (`#34d399`), `bg-emerald-500/10`, `text-emerald-300`
+- Error / gastos: `bg-red-500/10`, `text-red-300`, `text-red-200`, `border-red-400/20`
+- Advertencia: `bg-amber-500/10`, `text-amber-200`, `border-amber-400/20`
+
+### Gradientes principales
+
+- Layout global:
+  - `radial-gradient(circle_at_top, rgba(29,78,216,0.16), transparent 22%)`
+  - `radial-gradient(circle_at_80%_10%, rgba(16,185,129,0.12), transparent 18%)`
+  - `linear-gradient(180deg, #0a0d12 0%, #06070a 100%)`
+- Marca/avatar: `linear-gradient(135deg, rgba(37,99,235,0.95), rgba(59,130,246,0.5))`
+- Cards de ingresos: `rgba(16,185,129,0.14)` + `rgba(255,255,255,0.03)`
+- Cards de gastos: `rgba(239,68,68,0.14)` + `rgba(255,255,255,0.03)`
+
+### Categorías / gráficos
+
+Paleta fija usada en `Dashboard.jsx` para distribución por categorías:
+
+- Verde: `#22c55e`
+- Cian: `#06b6d4`
+- Azul: `#3b82f6`
+- Violeta: `#8b5cf6`
+- Naranja: `#f97316`
+- Rojo: `#ef4444`
+- Amarillo: `#eab308`
+- Teal: `#14b8a6`
+
+Colores adicionales en gráficos:
+
+- Ingresos flujo: `#34d399`
+- Gastos flujo: `#60a5fa`
+- Balance positivo: `#4ade80`
+- Balance negativo: `#f87171`
+
 Scripts útiles:
 
 - `npm run dev`

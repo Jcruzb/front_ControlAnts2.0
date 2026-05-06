@@ -60,8 +60,12 @@ export default function Navbar() {
     <div className="w-full">
       <div className="mx-auto flex h-20 w-full min-w-0 max-w-[1600px] items-center justify-between px-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] sm:px-[max(1.5rem,var(--safe-left))] sm:pr-[max(1.5rem,var(--safe-right))] lg:px-[max(2rem,var(--safe-left))] lg:pr-[max(2rem,var(--safe-right))] xl:px-[max(2.5rem,var(--safe-left))] xl:pr-[max(2.5rem,var(--safe-right))]">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-[20px] border border-white/10 bg-[linear-gradient(135deg,rgba(37,99,235,0.9),rgba(59,130,246,0.45))] text-sm font-bold text-white shadow-[0_12px_30px_rgba(37,99,235,0.35)]">
-            {initials}
+          <div className="flex h-12 w-12 items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.05] p-2 shadow-[0_12px_30px_rgba(37,99,235,0.22)]">
+            <img
+              src="/controlants-icon.svg"
+              alt="ControlAnts"
+              className="h-8 w-8 rounded-xl"
+            />
           </div>
           <div className="flex min-w-0 flex-col">
             <div className="truncate text-xl font-semibold tracking-tight text-white">ControlAnts</div>

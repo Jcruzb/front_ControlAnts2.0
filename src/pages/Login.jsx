@@ -56,12 +56,16 @@ export default function Login() {
         <div className="hidden rounded-[36px] border border-white/8 bg-[linear-gradient(145deg,rgba(29,78,216,0.22),rgba(6,10,18,0.8)_45%,rgba(16,185,129,0.16))] p-8 shadow-[0_28px_70px_rgba(0,0,0,0.28)] lg:flex lg:flex-col lg:justify-between">
           <div className="space-y-5">
             <div className="inline-flex w-fit items-center gap-3 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(37,99,235,0.95),rgba(59,130,246,0.55))] text-sm font-bold text-white shadow-[0_12px_30px_rgba(37,99,235,0.32)]">
-                CA
-              </span>
-              <span className="text-sm font-medium tracking-[0.22em] text-slate-200">
-                CONTROLANTS
-              </span>
+              <img
+                src="/controlants-icon.svg"
+                alt="ControlAnts"
+                className="h-8 w-8 rounded-xl"
+              />
+              <img
+                src="/controlants-logo.png"
+                alt="ControlAnts 2.0"
+                className="h-8 w-auto"
+              />
             </div>
 
             <div className="space-y-4">

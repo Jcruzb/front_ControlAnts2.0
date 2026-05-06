@@ -1,0 +1,49 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="104" fill="url(#bg)"/>
+
+  <!-- Glow -->
+  <circle cx="256" cy="260" r="190" fill="#3b82f6" opacity="0.12"/>
+  <circle cx="305" cy="310" r="150" fill="#34d399" opacity="0.10"/>
+
+  <!-- Billete simplificado -->
+  <g transform="translate(76 292) rotate(-8)">
+    <rect x="0" y="0" width="360" height="96" rx="20" fill="#0d1117" stroke="#3b82f6" stroke-width="10"/>
+    <rect x="28" y="24" width="72" height="48" rx="12" fill="#111823" stroke="#34d399" stroke-width="6"/>
+    <text x="132" y="66" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="900" fill="#34d399">€</text>
+    <text x="190" y="68" font-family="Arial, Helvetica, sans-serif" font-size="50" font-weight="900" fill="#60a5fa">500</text>
+  </g>
+
+  <!-- Hormiga icono -->
+  <g transform="translate(94 118)">
+    <!-- Patas detrás -->
+    <path d="M110 156 C76 190 54 220 34 260" stroke="#111823" stroke-width="18" stroke-linecap="round"/>
+    <path d="M152 162 C138 202 126 232 110 276" stroke="#111823" stroke-width="18" stroke-linecap="round"/>
+    <path d="M204 160 C210 204 218 236 232 278" stroke="#111823" stroke-width="18" stroke-linecap="round"/>
+    <path d="M244 144 C282 174 308 202 342 242" stroke="#111823" stroke-width="18" stroke-linecap="round"/>
+
+    <!-- Cuerpo -->
+    <ellipse cx="112" cy="132" rx="58" ry="48" fill="#06070a" stroke="#3b82f6" stroke-width="12"/>
+    <ellipse cx="196" cy="116" rx="56" ry="46" fill="#0a0d12" stroke="#3b82f6" stroke-width="12"/>
+    <ellipse cx="282" cy="94" rx="52" ry="44" fill="#06070a" stroke="#3b82f6" stroke-width="12"/>
+
+    <!-- Brillos -->
+    <ellipse cx="296" cy="78" rx="20" ry="10" fill="#e0f2fe" opacity="0.95"/>
+    <ellipse cx="126" cy="112" rx="18" ry="9" fill="#60a5fa" opacity="0.45"/>
+
+    <!-- Antenas -->
+    <path d="M304 56 C338 14 378 8 416 24" stroke="#60a5fa" stroke-width="10" stroke-linecap="round"/>
+    <path d="M288 52 C306 4 342 -18 382 -20" stroke="#60a5fa" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <!-- Marca CA mínima -->
+  <text x="256" y="455" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="66" font-weight="900" letter-spacing="-4">
+    <tspan fill="#3b82f6">C</tspan><tspan fill="#34d399">A</tspan>
+  </text>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0a0d12"/>
+      <stop offset="1" stop-color="#06070a"/>
+    </linearGradient>
+  </defs>
+</svg>
