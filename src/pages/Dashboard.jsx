@@ -52,6 +52,31 @@ function getCategoryMeta(item, categoryMap) {
   };
 }
 
+function getExpenseCategoryKey(expense, meta) {
+  const rawCategoryId =
+    expense?.category_detail?.id ??
+    expense?.category?.id ??
+    (typeof expense?.category === "number" || typeof expense?.category === "string"
+      ? expense.category
+      : null);
+
+  if (rawCategoryId !== null && rawCategoryId !== undefined && rawCategoryId !== "") {
+    return `category:${rawCategoryId}`;
+  }
+
+  return `category-name:${meta.name}`;
+}
+
+function getExpenseCategoryId(expense) {
+  return (
+    expense?.category_detail?.id ??
+    expense?.category?.id ??
+    (typeof expense?.category === "number" || typeof expense?.category === "string"
+      ? expense.category
+      : null)
+  );
+}
+
 function getExpenseIdentity(expense, index) {
   if (expense?.id !== null && expense?.id !== undefined) {
     return `id:${expense.id}`;
@@ -112,6 +137,49 @@ function formatCurrency(value) {
   return `${Number(value || 0).toFixed(2)} €`;
 }
 
+function formatDisplayDate(value) {
+  const parts = parseDateParts(value);
+
+  if (!parts) {
+    return "Sin fecha";
+  }
+
+  return `${String(parts.day).padStart(2, "0")}/${String(parts.month).padStart(2, "0")}/${parts.year}`;
+}
+
+function getExpenseDisplayName(expense) {
+  if (typeof expense?.name === "string" && expense.name.trim()) {
+    return expense.name.trim();
+  }
+
+  if (typeof expense?.description === "string" && expense.description.trim()) {
+    return expense.description.trim();
+  }
+
+  if (expense?.id !== null && expense?.id !== undefined) {
+    return `Gasto #${expense.id}`;
+  }
+
+  return "Gasto";
+}
+
+function getExpenseTimestamp(expense) {
+  if (!expense?.date) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const timestamp = new Date(expense.date).getTime();
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+}
+
+function isRecurringExpense(expense) {
+  return Boolean(
+    expense?.recurring_payment ||
+      expense?.recurring_payment_detail ||
+      expense?.is_recurring === true
+  );
+}
+
 function ChartShell({ title, description, children, className = "" }) {
   return (
     <article
@@ -126,7 +194,70 @@ function ChartShell({ title, description, children, className = "" }) {
   );
 }
 
-function ExpensePieChart({ items, totalExpenses }) {
+function CategoryExpenseDetails({ expenses }) {
+  const sortedExpenses = useMemo(() => {
+    return [...expenses].sort((a, b) => {
+      const dateDiff = getExpenseTimestamp(b) - getExpenseTimestamp(a);
+      if (dateDiff !== 0) {
+        return dateDiff;
+      }
+
+      return Number(b.amount || 0) - Number(a.amount || 0);
+    });
+  }, [expenses]);
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-white/8 pt-3">
+      {sortedExpenses.map((expense, index) => {
+        const payerName = expense?.payer_detail
+          ? getPayerDisplayName(expense.payer_detail)
+          : null;
+
+        return (
+          <div
+            key={getExpenseIdentity(expense, index)}
+            className="rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-3"
+          >
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-white">
+                  {getExpenseDisplayName(expense)}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                  <span>{formatDisplayDate(expense.date)}</span>
+                  {payerName ? (
+                    <>
+                      <span className="text-slate-600">·</span>
+                      <span>Paga: {payerName}</span>
+                    </>
+                  ) : null}
+                  {isRecurringExpense(expense) ? (
+                    <>
+                      <span className="text-slate-600">·</span>
+                      <span className="rounded-full border border-white/8 bg-black/20 px-2 py-0.5 text-[11px] text-slate-300">
+                        Recurrente
+                      </span>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              <p className="shrink-0 text-right text-sm font-semibold text-red-300">
+                - {formatCurrency(expense.amount)}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ExpensePieChart({
+  items,
+  totalExpenses,
+  expandedCategoryKey,
+  onToggleCategory,
+}) {
   if (!items.length || totalExpenses <= 0) {
     return (
       <div className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-6 text-sm text-slate-400">
@@ -138,7 +269,7 @@ function ExpensePieChart({ items, totalExpenses }) {
   const stops = [];
   let cursor = 0;
   items.forEach((item) => {
-    const percent = (item.total / totalExpenses) * 100;
+    const percent = item.percentage;
     stops.push(`${item.color} ${cursor}% ${cursor + percent}%`);
     cursor += percent;
   });
@@ -164,27 +295,54 @@ function ExpensePieChart({ items, totalExpenses }) {
 
       <div className="space-y-3">
         {items.slice(0, 6).map((item) => {
-          const share = (item.total / totalExpenses) * 100;
+          const share = item.percentage;
+          const isExpanded = expandedCategoryKey === item.key;
+          const detailsId = `category-expenses-${item.key.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
           return (
             <div
-              key={item.name}
-              className="rounded-[24px] border border-white/8 bg-black/20 px-4 py-3"
+              key={item.key}
+              className={`rounded-[24px] border bg-black/20 px-4 py-3 transition ${
+                isExpanded
+                  ? "border-blue-300/25"
+                  : "border-white/8 hover:border-white/14"
+              }`}
             >
-              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-white">
-                    <span className="mr-2">{item.icon}</span>
-                    {item.name}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {share.toFixed(1)}% del gasto del mes
-                  </p>
+              <button
+                type="button"
+                onClick={() => onToggleCategory(item.key)}
+                aria-expanded={isExpanded}
+                aria-controls={detailsId}
+                className="w-full text-left"
+              >
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-white">
+                      <span className="mr-2">{item.icon}</span>
+                      {item.name}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {share.toFixed(1)}% del gasto del mes
+                    </p>
+                    <p className="mt-1 text-xs text-blue-200">
+                      {isExpanded ? "Ocultar gastos" : "Ver gastos"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end sm:text-right">
+                    <p className="text-sm font-semibold text-white">
+                      {formatCurrency(item.total)}
+                    </p>
+                    <span
+                      className={`text-sm text-slate-400 transition ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                      aria-hidden="true"
+                    >
+                      ⌄
+                    </span>
+                  </div>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-white sm:text-right">
-                  {formatCurrency(item.total)}
-                </p>
-              </div>
+              </button>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
                 <div
                   className="h-full rounded-full"
@@ -193,6 +351,11 @@ function ExpensePieChart({ items, totalExpenses }) {
                     backgroundColor: item.color,
                   }}
                 />
+              </div>
+              <div id={detailsId} hidden={!isExpanded}>
+                {isExpanded ? (
+                  <CategoryExpenseDetails expenses={item.expenses} />
+                ) : null}
               </div>
             </div>
           );
@@ -372,6 +535,7 @@ const Dashboard = () => {
   const [recentIncomes, setRecentIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [expandedCategoryKey, setExpandedCategoryKey] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -422,6 +586,10 @@ const Dashboard = () => {
     fetchData();
   }, [month, year]);
 
+  useEffect(() => {
+    setExpandedCategoryKey(null);
+  }, [month, year]);
+
   const balance = totalIncome - totalExpenses;
   const balancePositive = balance >= 0;
   const categoryMap = useMemo(() => buildCategoryMap(categories), [categories]);
@@ -431,22 +599,33 @@ const Dashboard = () => {
 
     for (const expense of expenses) {
       const meta = getCategoryMeta(expense, categoryMap);
-      const key = meta.name;
+      const key = getExpenseCategoryKey(expense, meta);
       const current = grouped.get(key) || {
+        key,
+        categoryId: getExpenseCategoryId(expense),
+        categoryName: meta.name,
+        categoryIcon: meta.icon,
         name: meta.name,
         color: meta.color,
         icon: meta.icon,
         total: 0,
         count: 0,
+        expenses: [],
       };
 
       current.total += Number(expense.amount || 0);
       current.count += 1;
+      current.expenses.push(expense);
       grouped.set(key, current);
     }
 
-    return [...grouped.values()].sort((a, b) => b.total - a.total);
-  }, [categoryMap, expenses]);
+    return [...grouped.values()]
+      .map((item) => ({
+        ...item,
+        percentage: totalExpenses > 0 ? (item.total / totalExpenses) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [categoryMap, expenses, totalExpenses]);
 
   const payerSummary = useMemo(() => {
     const grouped = new Map();
@@ -580,7 +759,16 @@ const Dashboard = () => {
           description="Gráfica de torta con las categorías que más pesan en el mes."
           className="xl:col-span-2"
         >
-          <ExpensePieChart items={expenseCategories} totalExpenses={totalExpenses} />
+          <ExpensePieChart
+            items={expenseCategories}
+            totalExpenses={totalExpenses}
+            expandedCategoryKey={expandedCategoryKey}
+            onToggleCategory={(categoryKey) =>
+              setExpandedCategoryKey((current) =>
+                current === categoryKey ? null : categoryKey
+              )
+            }
+          />
         </ChartShell>
 
         <ChartShell
