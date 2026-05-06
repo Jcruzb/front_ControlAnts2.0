@@ -5,6 +5,7 @@ import api, {
 import { getCategories } from "../services/categories";
 import AddCategoryModal from "./AddCategoryModal";
 import { getTodayLocalDate } from "../utils/date";
+import { parseAmount } from "../utils/amounts";
 
 const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -154,9 +155,9 @@ export default function QuickAddIncome({
     e.preventDefault();
     setError(null);
 
-    const amountNum = parseFloat(form.amount);
-    if (Number.isNaN(amountNum) || amountNum <= 0) {
-      setError("El importe debe ser mayor que 0");
+    const amountNum = parseAmount(form.amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      setError("Introduce un importe válido mayor que 0");
       return;
     }
     if (!form.categoryId) {
@@ -245,8 +246,8 @@ export default function QuickAddIncome({
                   Importe (€)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   min="0"
                   value={form.amount}
                   onChange={(e) =>

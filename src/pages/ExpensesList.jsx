@@ -22,6 +22,7 @@ import {
   parseSpreadsheetDate,
   readSpreadsheetRows,
 } from "../utils/spreadsheet";
+import { getPayerDisplayName } from "../utils/payers";
 
 function getExpenseCategoryName(expense) {
   if (typeof expense?.category_detail?.name === "string") {
@@ -60,8 +61,8 @@ function getExpenseCategoryIcon(expense) {
 }
 
 function getExpensePayerName(expense) {
-  if (typeof expense?.payer_detail?.name === "string" && expense.payer_detail.name.trim()) {
-    return expense.payer_detail.name;
+  if (expense?.payer_detail) {
+    return getPayerDisplayName(expense.payer_detail);
   }
 
   return null;
@@ -288,7 +289,7 @@ const ExpensesList = () => {
       ...payers
         .map((payer) => ({
           value: String(payer.id),
-          label: payer.name || payer.email || "Sin nombre",
+          label: getPayerDisplayName(payer),
         }))
         .sort((a, b) => a.label.localeCompare(b.label, "es")),
     ],

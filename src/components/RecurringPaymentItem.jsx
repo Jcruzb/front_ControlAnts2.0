@@ -1,4 +1,5 @@
 import CardActionsMenu from "./CardActionsMenu";
+import { getPayerDisplayName } from "../utils/payers";
 
 /**
  * RecurringPaymentItem
@@ -38,10 +39,7 @@ export default function RecurringPaymentItem({
   } = item;
 
   const categoryInfo = categoryMap[category];
-  const payerName =
-    typeof item?.payer_detail?.name === "string" && item.payer_detail.name.trim()
-      ? item.payer_detail.name
-      : null;
+  const payerName = item?.payer_detail ? getPayerDisplayName(item.payer_detail) : null;
   const actionLabel = active ? "Desactivar" : "Reactivar";
   const handleSecondaryAction = () => {
     if (active) {

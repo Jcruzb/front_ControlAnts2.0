@@ -176,8 +176,8 @@ export default function CreateIncomePlanModal({
                 Importe planificado
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 min="0"
                 value={form.amount}
                 onChange={(event) =>

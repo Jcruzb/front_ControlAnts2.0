@@ -63,6 +63,7 @@ No existe una capa de hooks de dominio consolidada todavía. La lógica de carga
 - `/expenses/new` -> `AddExpense`
 - `/incomes` -> `IncomesList`
 - `/recurring` -> `RecurringPayments`
+- `/account` -> `Account`
 - `/login` -> `Login`
 - `/register` -> `Register`
 
@@ -79,6 +80,22 @@ Responsabilidades:
 - bootstrap de sesión con `/auth/me/`
 - login, register y logout
 - exponer `user`, `profile`, `family`, `authenticated`, `initialized`
+- sincronizar la sesión con payloads completos de `/auth/me/` cuando una pantalla de cuenta actualiza perfil
+
+### Auth / Cuenta
+
+Archivo clave: [src/services/authApi.js](/Users/juancruzballadares/Desktop/Proyectos/front-controlAnts2.0/src/services/authApi.js)
+
+Contratos usados:
+
+- `GET /auth/me/`
+- `PATCH /auth/me/`
+- `POST /auth/change-password/`
+
+Observación:
+
+- `PATCH /auth/me/` devuelve el payload completo y debe reflejarse en `AuthContext`.
+- la pantalla de cuenta mantiene formularios separados para datos personales y cambio de contraseña.
 
 Notas:
 

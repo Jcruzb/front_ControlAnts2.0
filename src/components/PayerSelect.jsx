@@ -1,3 +1,5 @@
+import { getPayerDisplayName, getPayerSecondaryText } from "../utils/payers";
+
 export default function PayerSelect({
   value = "",
   onChange,
@@ -26,13 +28,16 @@ export default function PayerSelect({
         {!hasCurrentOption ? (
           <option value={normalizedValue}>Pagador seleccionado</option>
         ) : null}
-        {payers.map((payer) => (
-          <option key={payer.id} value={payer.id}>
-            {payer.email
-              ? `${payer.name || payer.email} · ${payer.email}`
-              : payer.name || "Sin nombre"}
-          </option>
-        ))}
+        {payers.map((payer) => {
+          const label = getPayerDisplayName(payer);
+          const secondary = getPayerSecondaryText(payer);
+
+          return (
+            <option key={payer.id} value={payer.id}>
+              {secondary ? `${label} · ${secondary}` : label}
+            </option>
+          );
+        })}
       </select>
     </label>
   );

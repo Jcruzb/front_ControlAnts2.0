@@ -76,10 +76,10 @@ function formatCurrency(value) {
 function ChartShell({ title, description, children, className = "" }) {
   return (
     <article
-      className={`rounded-[32px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.22)] ${className}`}
+      className={`min-w-0 rounded-3xl border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] sm:p-6 ${className}`}
     >
-      <div className="mb-5">
-        <h2 className="text-lg font-semibold tracking-tight text-white">{title}</h2>
+      <div className="mb-4 sm:mb-5">
+        <h2 className="text-base font-semibold tracking-tight text-white sm:text-lg">{title}</h2>
         {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
       </div>
       {children}
@@ -105,10 +105,10 @@ function ExpensePieChart({ items, totalExpenses }) {
   });
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
-      <div className="mx-auto flex w-full max-w-[240px] items-center justify-center">
+    <div className="grid min-w-0 gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
+      <div className="mx-auto flex w-full max-w-[220px] items-center justify-center sm:max-w-[240px]">
         <div
-          className="relative flex h-56 w-56 items-center justify-center rounded-full"
+          className="relative flex aspect-square w-full max-w-56 items-center justify-center rounded-full"
           style={{
             background: `conic-gradient(${stops.join(", ")})`,
           }}
@@ -132,7 +132,7 @@ function ExpensePieChart({ items, totalExpenses }) {
               key={item.name}
               className="rounded-[24px] border border-white/8 bg-black/20 px-4 py-3"
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-white">
                     <span className="mr-2">{item.icon}</span>
@@ -142,7 +142,7 @@ function ExpensePieChart({ items, totalExpenses }) {
                     {share.toFixed(1)}% del gasto del mes
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-white">
+                <p className="shrink-0 text-sm font-semibold text-white sm:text-right">
                   {formatCurrency(item.total)}
                 </p>
               </div>
@@ -173,16 +173,16 @@ function DailyExpenseBars({ days, maxAmount }) {
   }
 
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="flex min-w-max items-end gap-2">
+    <div className="-mx-1 overflow-x-auto px-1 pb-1">
+      <div className="flex min-w-max items-end gap-1.5 sm:gap-2">
         {days.map((day) => {
-          const height = Math.max(8, (day.total / maxAmount) * 180);
+          const height = Math.max(8, (day.total / maxAmount) * 160);
 
           return (
-            <div key={day.day} className="flex w-10 flex-col items-center gap-2">
-              <div className="flex h-[210px] w-full items-end justify-center">
+            <div key={day.day} className="flex w-9 flex-col items-center gap-2 sm:w-10">
+              <div className="flex h-[190px] w-full items-end justify-center sm:h-[210px]">
                 <div
-                  className="w-7 rounded-t-2xl bg-gradient-to-t from-emerald-500 to-cyan-400 shadow-[0_12px_24px_rgba(16,185,129,0.2)]"
+                  className="w-6 rounded-t-2xl bg-gradient-to-t from-emerald-500 to-cyan-400 shadow-[0_12px_24px_rgba(16,185,129,0.2)] sm:w-7"
                   style={{ height: `${height}px` }}
                   title={`${day.day}: ${formatCurrency(day.total)}`}
                 />
@@ -209,10 +209,10 @@ function FlowComparison({ income, expenses, balance }) {
   return (
     <div className="space-y-4">
       <div className="rounded-[28px] border border-white/8 bg-black/20 p-5">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm text-slate-400">Saldo neto</p>
-            <p className={`mt-1 text-3xl font-semibold tracking-tight ${balance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+            <p className={`mt-1 break-words text-2xl font-semibold tracking-tight sm:text-3xl ${balance >= 0 ? "text-emerald-300" : "text-red-300"}`}>
               {balance >= 0 ? "+" : ""}
               {formatCurrency(balance)}
             </p>
@@ -228,9 +228,9 @@ function FlowComparison({ income, expenses, balance }) {
           const width = Math.max(6, (row.value / reference) * 100);
           return (
             <div key={row.label} className="rounded-[24px] border border-white/8 bg-black/20 px-4 py-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="mb-2 flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <p className="text-sm font-medium text-white">{row.label}</p>
-                <p className="text-sm font-semibold text-slate-100">
+                <p className="break-words text-sm font-semibold text-slate-100 sm:text-right">
                   {formatCurrency(row.value)}
                 </p>
               </div>
@@ -375,19 +375,19 @@ const Dashboard = () => {
   }
 
   return (
-    <section className="space-y-8">
+    <section className="min-w-0 space-y-6 sm:space-y-8">
       <header className="space-y-5">
         <div className="space-y-2">
           <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">
             Dashboard
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-white capitalize">
+          <h1 className="text-2xl font-semibold tracking-tight text-white capitalize sm:text-3xl">
             {monthLabel}
           </h1>
           <p className="text-sm text-slate-400">Resumen financiero del mes</p>
         </div>
 
-        <div className="rounded-[32px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-5">
+        <div className="rounded-3xl border border-white/8 bg-white/[0.04] p-3 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-5">
           <div className="mx-auto flex w-full justify-center">
             <MonthNavigation
               year={year}
@@ -405,27 +405,27 @@ const Dashboard = () => {
       </header>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        <div className="rounded-[32px] border border-white/8 bg-[linear-gradient(135deg,rgba(16,185,129,0.14),rgba(255,255,255,0.03))] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
+        <div className="min-w-0 rounded-3xl border border-white/8 bg-[linear-gradient(135deg,rgba(16,185,129,0.14),rgba(255,255,255,0.03))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] sm:p-6">
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-300">Ingresos</p>
             <span className="text-xl text-emerald-300">↗</span>
           </div>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-white">
+          <p className="mt-4 break-words text-2xl font-semibold tracking-tight text-white sm:text-3xl">
             + {formatCurrency(totalIncome)}
           </p>
         </div>
 
-        <div className="rounded-[32px] border border-white/8 bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(255,255,255,0.03))] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
+        <div className="min-w-0 rounded-3xl border border-white/8 bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(255,255,255,0.03))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] sm:p-6">
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-300">Gastos</p>
             <span className="text-xl text-red-300">↘</span>
           </div>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-white">
+          <p className="mt-4 break-words text-2xl font-semibold tracking-tight text-white sm:text-3xl">
             − {formatCurrency(totalExpenses)}
           </p>
         </div>
 
-        <div className="rounded-[32px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]">
+        <div className="min-w-0 rounded-3xl border border-white/8 bg-white/[0.04] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] sm:p-6">
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-300">Balance</p>
             <span className={`text-xl ${balancePositive ? "text-emerald-300" : "text-red-300"}`}>
@@ -433,7 +433,7 @@ const Dashboard = () => {
             </span>
           </div>
           <p
-            className={`mt-4 text-3xl font-semibold tracking-tight ${
+            className={`mt-4 break-words text-2xl font-semibold tracking-tight sm:text-3xl ${
               balancePositive ? "text-emerald-300" : "text-red-300"
             }`}
           >
@@ -473,10 +473,10 @@ const Dashboard = () => {
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[32px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight text-white">
+        <div className="min-w-0 rounded-3xl border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] sm:p-6">
+          <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-white sm:text-lg">
                 Ingresos recientes
               </h2>
               <p className="text-sm text-slate-400">
@@ -485,7 +485,7 @@ const Dashboard = () => {
             </div>
             <button
               onClick={() => navigate("/incomes")}
-              className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-medium text-slate-100 transition hover:bg-white/[0.1]"
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-medium text-slate-100 transition hover:bg-white/[0.1] sm:w-auto"
             >
               Ver todos
             </button>
@@ -500,18 +500,18 @@ const Dashboard = () => {
               {recentIncomes.map((income) => (
                 <div
                   key={income.id}
-                  className="flex items-center justify-between gap-4 rounded-[28px] border border-white/8 bg-black/20 px-4 py-4"
+                  className="flex min-w-0 flex-col gap-3 rounded-[28px] border border-white/8 bg-black/20 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
-                  <div>
-                    <p className="font-medium text-white">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-white">
                       {income.category_detail?.name || "Ingreso"}
                     </p>
-                    <p className="text-sm text-slate-400">
+                    <p className="break-words text-sm text-slate-400">
                       {income.description || income.date}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-emerald-300">
+                  <div className="shrink-0 sm:text-right">
+                    <p className="break-words font-semibold text-emerald-300">
                       + {Number(income.amount).toFixed(2)} €
                     </p>
                     <p className="text-xs text-slate-500">{income.date}</p>
@@ -522,9 +522,9 @@ const Dashboard = () => {
           )}
         </div>
 
-        <div className="rounded-[32px] border border-white/8 bg-white/[0.04] p-6 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
+        <div className="min-w-0 rounded-3xl border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] sm:p-6">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold tracking-tight text-white">
+            <h2 className="text-base font-semibold tracking-tight text-white sm:text-lg">
               Claves del gasto
             </h2>
             <p className="text-sm text-slate-400">
@@ -546,9 +546,9 @@ const Dashboard = () => {
                     key={item.name}
                     className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-white">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-white">
                           <span className="mr-2">{item.icon}</span>
                           {item.name}
                         </p>
@@ -556,7 +556,7 @@ const Dashboard = () => {
                           {item.count} movimiento{item.count === 1 ? "" : "s"}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold text-white">
+                      <p className="shrink-0 text-sm font-semibold text-white sm:text-right">
                         {formatCurrency(item.total)}
                       </p>
                     </div>
@@ -577,7 +577,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 pt-2">
+      <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap">
         <button
           onClick={() => navigate("/expenses/new")}
           className="hidden items-center gap-2 rounded-2xl bg-blue-500 px-6 py-3 font-semibold text-white transition hover:bg-blue-400 md:inline-flex"
@@ -619,7 +619,7 @@ const Dashboard = () => {
             }
           }}
           buttonLabel="➕ Añadir ingreso"
-          buttonClassName="inline-flex items-center gap-2 rounded-2xl bg-emerald-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-emerald-300"
+          buttonClassName="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-emerald-300 sm:w-auto"
         />
       </div>
 

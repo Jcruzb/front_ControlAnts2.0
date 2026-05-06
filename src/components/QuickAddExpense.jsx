@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { getRelativeLocalDate, getTodayLocalDate } from "../utils/date";
 import PayerSelect from "./PayerSelect";
+import { parseAmount } from "../utils/amounts";
 
 export default function QuickAddExpense({
   isOpen,
@@ -42,9 +43,14 @@ export default function QuickAddExpense({
   const [payer, setPayer] = useState(
     context?.payer !== null && context?.payer !== undefined ? String(context.payer) : ""
   );
+  const [amountError, setAmountError] = useState(null);
 
   const handleSubmit = async () => {
-    if (!amount || Number(amount) <= 0) return;
+    const parsedAmount = parseAmount(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setAmountError("Introduce un importe válido mayor que 0");
+      return;
+    }
 
     let resolvedDate = null;
 
@@ -62,7 +68,7 @@ export default function QuickAddExpense({
     }
 
     const payload = {
-      amount: Number(amount),
+      amount: parsedAmount.toFixed(2),
       date: resolvedDate,
       note,
       categoryId: context?.categoryId,
@@ -107,15 +113,21 @@ export default function QuickAddExpense({
 
         <div className="mb-4">
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
             autoFocus
             placeholder="0,00 €"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setAmountError(null);
+            }}
             className="w-full rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-4 text-2xl font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
           />
         </div>
+        {amountError ? (
+          <p className="-mt-2 mb-4 text-sm text-red-200">{amountError}</p>
+        ) : null}
 
         <div className="mb-4">
           <div className="flex gap-2">
@@ -188,7 +200,7 @@ export default function QuickAddExpense({
 
         <button
           onClick={handleSubmit}
-          disabled={!amount || Number(amount) <= 0}
+          disabled={!Number.isFinite(parseAmount(amount)) || parseAmount(amount) <= 0}
           className="w-full rounded-2xl bg-blue-500 py-3 font-semibold text-white transition hover:bg-blue-400 disabled:opacity-40"
         >
           Guardar gasto

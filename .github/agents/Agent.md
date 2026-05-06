@@ -145,6 +145,7 @@ const handleAction = async () => {
 
 - **Budget**: Presupuestos mensuales con quick-add de gastos
 - **Dashboard**: Resumen mes: ingresos, gastos, balance
+- **Account**: Autogestión del usuario autenticado con datos personales y cambio de contraseña
 - **ExpensesList**: Listado completo de gastos del mes
 - **AddExpense**: Formulario crear gasto (monto, categoría, fecha)
 - **RecurringPayments**: CRUD de gastos fijos
@@ -170,6 +171,15 @@ Cuando se toque el flujo de `adjust` de ingresos recurrentes:
 5. **Valida formularios** tanto en frontend como backend.
 6. **Maneja estados de loading** en todas las operaciones async.
 7. **Usa hooks personalizados** cuando sea apropiado para reutilización.
+
+## Responsive Design Obligatorio
+
+- Diseña mobile-first: estilos base para 320-390px y escala con `sm:`, `md:`, `lg:` y `xl:`.
+- En grids principales usa `grid-cols-1` como base y agrega columnas solo desde `sm:` o superior.
+- En tarjetas y paneles usa `min-w-0`; combina `truncate`, `break-words` o layout en columna para importes, fechas y textos variables.
+- En móvil reduce densidad visual: `p-4`, `rounded-3xl` o menor, títulos `text-base/text-2xl`; reserva `p-6`, `rounded-[32px]` y `text-3xl` para `sm:` o superior.
+- Si un gráfico necesita ancho fijo, enciérralo en `overflow-x-auto`; el resto de la vista no debe provocar scroll horizontal.
+- Antes de cerrar cambios en vistas principales, revisa mentalmente anchos de 320px, 390px, 768px y desktop.
 
 ## Comportamiento del Agente
 

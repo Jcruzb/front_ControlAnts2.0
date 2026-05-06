@@ -6,6 +6,7 @@ import IncomePlanMonthItem from "../components/IncomePlanMonthItem";
 import MonthNavigation from "../components/MonthNavigation";
 import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
 import ExpenseFormModal from "../components/ExpenseFormModal";
+import QuickPayTotalModal from "../components/QuickPayTotalModal";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
 import api, {
   getApiErrorMessage,
@@ -25,7 +26,9 @@ import {
   getIncomePlansMonth,
 } from "../services/incomePlans";
 import recurringPaymentsService from "../services/recurringPaymentsService";
+import { parseAmount } from "../utils/amounts";
 import { getTodayLocalDate } from "../utils/date";
+import { getPayerDisplayName } from "../utils/payers";
 
 function getBudgetItemLabel(item, type) {
   if (type === "planned") {
@@ -202,6 +205,12 @@ export default function Budget() {
   const [budgetCategoryFilter, setBudgetCategoryFilter] = useState("all");
   const [budgetView, setBudgetView] = useState("expenses");
   const [activeQuickBudgetAction, setActiveQuickBudgetAction] = useState(null);
+  const [quickPayTotalState, setQuickPayTotalState] = useState({
+    isOpen: false,
+    item: null,
+    type: null,
+    error: null,
+  });
   const [budgetDetailState, setBudgetDetailState] = useState({
     isOpen: false,
     loading: false,
@@ -342,8 +351,13 @@ export default function Budget() {
     recurringPaymentId,
     payer,
   }) {
+    const parsedAmount = parseAmount(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      throw new Error("Introduce un importe válido mayor que 0");
+    }
+
     const payload = {
-      amount,
+      amount: parsedAmount.toFixed(2),
       date, // already resolved by the QuickAddExpense modal
       description: note || "",
       category: categoryId,
@@ -373,21 +387,36 @@ export default function Budget() {
     return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   }
 
-  async function handleQuickPayPlannedExpense(item, type) {
+  function openQuickPayTotal(item, type) {
     if (!item) return;
+
+    setQuickPayTotalState({
+      isOpen: true,
+      item,
+      type,
+      error: null,
+    });
+  }
+
+  function closeQuickPayTotal() {
+    if (activeQuickBudgetAction?.type === "pay") return;
+    setQuickPayTotalState({
+      isOpen: false,
+      item: null,
+      type: null,
+      error: null,
+    });
+  }
+
+  async function handleQuickPayTotalSubmit({ payer } = {}) {
+    const item = quickPayTotalState.item;
+    const type = quickPayTotalState.type;
+    if (!item || !type) return;
 
     const label = getBudgetItemLabel(item, type);
 
-    const confirmMessage = `¿Registrar el pago total de "${label}" por ${Number(
-      item.planned_amount || 0
-    ).toFixed(2)} €?`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
     try {
-      setError(null);
+      setQuickPayTotalState((current) => ({ ...current, error: null }));
       setActiveQuickBudgetAction({
         id: `${type}-${item.id}`,
         type: "pay",
@@ -399,13 +428,23 @@ export default function Budget() {
         categoryId: item.category,
         plannedExpenseId: type === "planned" ? item.id : null,
         recurringPaymentId: type === "recurring" ? item.id : null,
-        payer: item.payer,
+        payer,
+      });
+      setQuickPayTotalState({
+        isOpen: false,
+        item: null,
+        type: null,
+        error: null,
       });
     } catch (quickPayError) {
       console.error(quickPayError);
-      setError(
-        getApiErrorMessage(quickPayError, "No se pudo registrar el pago total")
-      );
+      setQuickPayTotalState((current) => ({
+        ...current,
+        error: getApiErrorMessage(
+          quickPayError,
+          "No se pudo registrar el pago total"
+        ),
+      }));
     } finally {
       setActiveQuickBudgetAction(null);
     }
@@ -561,7 +600,9 @@ export default function Budget() {
   async function handleSaveBudgetPayment(payload) {
     if (!editingBudgetPayment?.id) return;
 
-    if (!payload.amount || Number(payload.amount) <= 0) {
+    const parsedAmount = parseAmount(payload.amount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setBudgetPaymentFormError("El importe debe ser mayor que 0");
       return;
     }
@@ -576,6 +617,7 @@ export default function Budget() {
       setBudgetPaymentFormError(null);
       const response = await api.patch(`/expenses/${editingBudgetPayment.id}/`, {
         ...payload,
+        amount: parsedAmount.toFixed(2),
         category: Number(payload.category),
       });
 
@@ -635,11 +677,11 @@ export default function Budget() {
   }
 
   const totalIncome = useMemo(() => {
-    return incomes.reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
+    return incomes.reduce((sum, inc) => sum + Number(inc.amount || 0), 0);
   }, [incomes]);
 
   const incomePlanMonthBlock = useMemo(() => {
-    return data?.income_plan_month ?? incomePlanMonthData ?? null;
+    return incomePlanMonthData ?? data?.income_plan_month ?? null;
   }, [data?.income_plan_month, incomePlanMonthData]);
 
   const normalizedIncomePlanMonth = useMemo(() => {
@@ -926,7 +968,7 @@ export default function Budget() {
     }
 
     const categoryId = Number(payload.categoryId);
-    const amount = Number(payload.amount);
+    const amount = parseAmount(payload.amount);
     const dueDay = payload.dueDay ? Number(payload.dueDay) : null;
 
     if (!categoryId) {
@@ -934,8 +976,8 @@ export default function Budget() {
       return;
     }
 
-    if (!amount || amount <= 0) {
-      setCreatePlanError("El importe debe ser mayor que 0");
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setCreatePlanError("Introduce un importe válido mayor que 0");
       return;
     }
 
@@ -951,7 +993,7 @@ export default function Budget() {
         active: true,
         start_month: selectedMonthId,
         end_month: payload.planType === "ONE_MONTH" ? selectedMonthId : null,
-        planned_amount: amount,
+        planned_amount: amount.toFixed(2),
       });
 
       await confirmIncomePlan(plan.id, { year, month });
@@ -971,15 +1013,15 @@ export default function Budget() {
   async function handleSaveIncomePlan(payload) {
     if (editingIncomePlan) {
       const planId = editingIncomePlan.plan_id;
-      const plannedAmount = Number(payload.amount);
+      const plannedAmount = parseAmount(payload.amount);
 
       if (!planId) {
         setCreatePlanError("No se pudo identificar el salario a editar");
         return;
       }
 
-      if (!plannedAmount || plannedAmount <= 0) {
-        setCreatePlanError("El importe debe ser mayor que 0");
+      if (!Number.isFinite(plannedAmount) || plannedAmount <= 0) {
+        setCreatePlanError("Introduce un importe válido mayor que 0");
         return;
       }
 
@@ -998,7 +1040,7 @@ export default function Budget() {
             payload.planType === "ONE_MONTH"
               ? editingIncomePlan.start_month || selectedMonthId
               : editingIncomePlan.end_month || null,
-          planned_amount: plannedAmount,
+          planned_amount: plannedAmount.toFixed(2),
         });
 
         setEditingIncomePlan(null);
@@ -1346,7 +1388,7 @@ export default function Budget() {
                     item={item}
                     icon="🛒"
                     onQuickAddSubmit={handleQuickAddSubmit}
-                    onQuickPayTotal={handleQuickPayPlannedExpense}
+                    onQuickPayTotal={openQuickPayTotal}
                     onQuickRevertTotal={handleQuickRevertPlannedExpense}
                     canQuickRevert={Boolean(reversibleExpense)}
                     quickActionLoading={
@@ -1393,7 +1435,7 @@ export default function Budget() {
                       item={item}
                       icon="🔁"
                       onQuickAddSubmit={handleQuickAddSubmit}
-                      onQuickPayTotal={handleQuickPayPlannedExpense}
+                      onQuickPayTotal={openQuickPayTotal}
                       onQuickRevertTotal={handleQuickRevertPlannedExpense}
                       canQuickRevert={Boolean(reversibleExpense)}
                       quickActionLoading={
@@ -1588,11 +1630,13 @@ export default function Budget() {
                     getBudgetPaymentState(budgetDetailState.item)
                   ),
                 },
-                ...(budgetDetailState.item?.payer_detail?.name
+                ...(budgetDetailState.item?.payer_detail
                   ? [
                       {
                         label: "Pagador",
-                        value: budgetDetailState.item.payer_detail.name,
+                        value: getPayerDisplayName(
+                          budgetDetailState.item.payer_detail
+                        ),
                       },
                     ]
                   : []),
@@ -1627,6 +1671,29 @@ export default function Budget() {
           setBudgetPaymentFormError(null);
         }}
         onSubmit={handleSaveBudgetPayment}
+      />
+
+      <QuickPayTotalModal
+        key={
+          quickPayTotalState.item
+            ? `quick-pay-${quickPayTotalState.type}-${quickPayTotalState.item.id}`
+            : "quick-pay-closed"
+        }
+        isOpen={quickPayTotalState.isOpen}
+        item={quickPayTotalState.item}
+        title={
+          quickPayTotalState.item
+            ? getBudgetItemLabel(quickPayTotalState.item, quickPayTotalState.type)
+            : ""
+        }
+        amount={quickPayTotalState.item?.planned_amount ?? 0}
+        defaultPayer={quickPayTotalState.item?.payer ?? ""}
+        payers={payers}
+        payersError={payersError}
+        loading={activeQuickBudgetAction?.type === "pay"}
+        error={quickPayTotalState.error}
+        onClose={closeQuickPayTotal}
+        onSubmit={handleQuickPayTotalSubmit}
       />
 
       <MobilePrimaryAction to="/expenses/new" label="+ Añadir gasto" />

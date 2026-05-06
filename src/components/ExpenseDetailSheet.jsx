@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { getPayerDisplayName } from "../utils/payers";
 
 function formatCurrency(value) {
   return `${Number(value || 0).toFixed(2)} €`;
@@ -136,11 +137,9 @@ export default function ExpenseDetailSheet({
               <div className="mt-4 space-y-3">
                 {sortedPayments.map((payment) => {
                   const categoryLabel = getPaymentCategoryLabel?.(payment) || null;
-                  const payerName =
-                    typeof payment?.payer_detail?.name === "string" &&
-                    payment.payer_detail.name.trim()
-                      ? payment.payer_detail.name
-                      : null;
+                  const payerName = payment?.payer_detail
+                    ? getPayerDisplayName(payment.payer_detail)
+                    : null;
 
                   return (
                     <div

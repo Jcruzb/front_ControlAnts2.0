@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getTodayLocalDate } from "../utils/date";
 import PayerSelect from "./PayerSelect";
+import { parseAmount } from "../utils/amounts";
 
 function buildInitialForm(expense) {
   return {
@@ -33,6 +34,7 @@ export default function ExpenseFormModal({
   onSubmit,
 }) {
   const [form, setForm] = useState(() => buildInitialForm(expense));
+  const [amountError, setAmountError] = useState(null);
 
   if (!isOpen) return null;
 
@@ -42,8 +44,16 @@ export default function ExpenseFormModal({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const amount = parseAmount(form.amount);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAmountError("Introduce un importe válido mayor que 0");
+      return;
+    }
+
+    setAmountError(null);
     const payload = {
-      amount: Number(form.amount),
+      amount: amount.toFixed(2),
       description: form.description,
       category: form.category,
       date: form.date,
@@ -81,11 +91,13 @@ export default function ExpenseFormModal({
             <span className="text-sm text-slate-400">Importe</span>
             <div className="relative">
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 inputMode="decimal"
                 value={form.amount}
-                onChange={handleChange("amount")}
+                onChange={(event) => {
+                  setAmountError(null);
+                  handleChange("amount")(event);
+                }}
                 className="w-full rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-4 text-2xl font-semibold text-white outline-none transition focus:border-blue-400/50"
                 required
               />
@@ -93,6 +105,9 @@ export default function ExpenseFormModal({
                 €
               </span>
             </div>
+            {amountError ? (
+              <p className="text-sm text-red-200">{amountError}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">

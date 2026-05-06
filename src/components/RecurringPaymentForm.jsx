@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AddCategoryModal from "./AddCategoryModal";
 import PayerSelect from "./PayerSelect";
+import { parseAmount } from "../utils/amounts";
 
 /**
  * RecurringPaymentForm
@@ -51,15 +52,23 @@ export default function RecurringPaymentForm({
   const [hasEndDate, setHasEndDate] = useState(() => getInitialFormState().hasEndDate);
   const [endDate, setEndDate] = useState(() => getInitialFormState().endDate);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [amountError, setAmountError] = useState(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const parsedAmount = parseAmount(amount);
 
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setAmountError("Introduce un importe válido mayor que 0");
+      return;
+    }
+
+    setAmountError(null);
     const payload = {
       name: name.trim(),
-      amount: Number(amount),
+      amount: parsedAmount.toFixed(2),
       due_day: Number(dueDay),
       category,
       start_date: startDate,
@@ -113,14 +122,20 @@ export default function RecurringPaymentForm({
               Importe mensual (€)
             </label>
             <input
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               placeholder="0,00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmountError(null);
+                setAmount(e.target.value);
+              }}
               required
               className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
             />
+            {amountError ? (
+              <p className="mt-2 text-sm text-red-200">{amountError}</p>
+            ) : null}
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">

@@ -6,6 +6,7 @@ import { getFamilyMembers } from "../services/familyMembers";
 import { getTodayLocalDate } from "../utils/date";
 import AddCategoryModal from "../components/AddCategoryModal";
 import PayerSelect from "../components/PayerSelect";
+import { parseAmount } from "../utils/amounts";
 
 const AddExpense = () => {
   const navigate = useNavigate();
@@ -63,8 +64,10 @@ const AddExpense = () => {
     e.preventDefault();
     setError(null);
 
-    if (!amount || Number(amount) <= 0) {
-      setError("El importe debe ser mayor que 0");
+    const parsedAmount = parseAmount(amount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setError("Introduce un importe válido mayor que 0");
       return;
     }
     if (!String(category).trim()) {
@@ -77,7 +80,7 @@ const AddExpense = () => {
 
       const payload = {
         description,
-        amount,
+        amount: parsedAmount.toFixed(2),
         category,
         date,
       };
@@ -116,8 +119,8 @@ const AddExpense = () => {
           <span className="text-sm text-slate-400">Importe</span>
           <div className="relative">
             <input
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               placeholder="0,00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}

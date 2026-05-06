@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import QuickAddExpense from "./QuickAddExpense";
+import { getPayerDisplayName } from "../utils/payers";
 
 function getBudgetCardTitle(item, type) {
   if (!item) return "";
@@ -78,10 +79,7 @@ export default function BudgetItem({
     const raw = Number(item?.percentage_used ?? 0);
     return Math.max(0, Math.min(100, raw));
   }, [item?.percentage_used]);
-  const payerName =
-    typeof item?.payer_detail?.name === "string" && item.payer_detail.name.trim()
-      ? item.payer_detail.name
-      : null;
+  const payerName = item?.payer_detail ? getPayerDisplayName(item.payer_detail) : null;
 
   const handleQuickAddSubmit = async (payload) => {
     if (typeof onQuickAddSubmit === "function") {

@@ -19,6 +19,7 @@ import {
   parseSpreadsheetDate,
   readSpreadsheetRows,
 } from "../utils/spreadsheet";
+import { getPayerDisplayName } from "../utils/payers";
 
 /**
  * RecurringPayments
@@ -86,7 +87,7 @@ export default function RecurringPayments() {
       ...payers
         .map((payer) => ({
           value: String(payer.id),
-          label: payer.name || payer.email || "Sin nombre",
+          label: getPayerDisplayName(payer),
         }))
         .sort((a, b) => a.label.localeCompare(b.label, "es")),
     ],
@@ -841,11 +842,11 @@ export default function RecurringPayments() {
                   label: "Estado",
                   value: detailState.data.active ? "Activo" : "Inactivo",
                 },
-                ...(detailState.data.payer_detail?.name
+                ...(detailState.data.payer_detail
                   ? [
                       {
                         label: "Pagador",
-                        value: detailState.data.payer_detail.name,
+                        value: getPayerDisplayName(detailState.data.payer_detail),
                       },
                     ]
                   : []),

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { getTodayLocalDate } from "../utils/date";
+import { parseAmount } from "../utils/amounts";
 
 function getLastDayOfMonth(year, month) {
   return new Date(year, month, 0).getDate();
@@ -43,13 +44,22 @@ export default function AdjustIncomePlanModal({
     date: resolvedIncome?.date ?? getDefaultDate(budgetYear, budgetMonth),
     description: resolvedIncome?.description ?? item?.description ?? "",
   }));
+  const [amountError, setAmountError] = useState(null);
 
   if (!isOpen || !item) return null;
 
   async function handleSubmit(event) {
     event.preventDefault();
+    const amount = parseAmount(form.amount);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAmountError("Introduce un importe válido mayor que 0");
+      return;
+    }
+
+    setAmountError(null);
     await onSubmit({
-      amount: Number(form.amount),
+      amount: amount.toFixed(2),
       date: form.date,
       description: form.description || "",
     });
@@ -80,16 +90,20 @@ export default function AdjustIncomePlanModal({
               Importe real
             </label>
             <input
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               min="0"
               value={form.amount}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, amount: event.target.value }))
-              }
+              onChange={(event) => {
+                setAmountError(null);
+                setForm((current) => ({ ...current, amount: event.target.value }));
+              }}
               required
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
             />
+            {amountError ? (
+              <p className="mt-2 text-sm text-red-200">{amountError}</p>
+            ) : null}
           </div>
 
           <div>

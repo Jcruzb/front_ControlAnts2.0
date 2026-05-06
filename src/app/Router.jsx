@@ -6,6 +6,7 @@ import ExpensesList from '../pages/ExpensesList'
 import IncomesList from '../pages/IncomesList'
 import Budget from '../pages/Budget'
 import RecurringPayments from '../pages/RecurringPayments'
+import Account from '../pages/Account'
 import Login from '../pages/Login'
 import Register from '../pages/Register'
 import { useAuth } from '../hooks/useAuth'
@@ -61,6 +62,7 @@ function Router() {
         <Route path="/incomes" element={<PrivateRoute><IncomesList /></PrivateRoute>} />
         <Route path="/expenses/new" element={<PrivateRoute><AddExpense /></PrivateRoute>} />
         <Route path="/recurring" element={<PrivateRoute><RecurringPayments /></PrivateRoute>} />
+        <Route path="/account" element={<PrivateRoute><Account /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: "Gastos", path: "/expenses" },
   { label: "Ingresos", path: "/incomes" },
   { label: "Dashboard", path: "/dashboard" },
+  { label: "Mi cuenta", path: "/account" },
 ];
 
 export default function Navbar() {

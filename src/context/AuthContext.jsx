@@ -37,6 +37,11 @@ export function AuthProvider({ children }) {
     return payload;
   }, []);
 
+  const syncSession = useCallback(
+    (payload) => applyAuthPayload(payload),
+    [applyAuthPayload]
+  );
+
   const refreshSession = useCallback(async () => {
     try {
       await authApi.getCsrf();
@@ -102,8 +107,9 @@ export function AuthProvider({ children }) {
       login,
       logout,
       refreshSession,
+      syncSession,
     }),
-    [authState, login, logout, refreshSession, register]
+    [authState, login, logout, refreshSession, register, syncSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
