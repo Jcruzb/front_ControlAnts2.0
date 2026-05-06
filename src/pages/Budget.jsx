@@ -6,6 +6,7 @@ import IncomePlanMonthItem from "../components/IncomePlanMonthItem";
 import MonthNavigation from "../components/MonthNavigation";
 import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
 import ExpenseFormModal from "../components/ExpenseFormModal";
+import InfoTooltip from "../components/InfoTooltip";
 import QuickPayTotalModal from "../components/QuickPayTotalModal";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
 import api, {
@@ -146,19 +147,11 @@ const EMPTY_BUDGET = {
 
 function MetricLabel({ children, help }) {
   return (
-    <div className="group relative flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-500">
       <span>{children}</span>
-      <button
-        type="button"
-        className="peer inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-[10px] font-semibold normal-case tracking-normal text-slate-300 outline-none transition hover:border-blue-300/30 hover:text-white focus:border-blue-300/40 focus:text-white"
-        title={help}
-        aria-label={help}
-      >
-        i
-      </button>
-      <span className="pointer-events-none absolute left-0 top-7 z-20 w-[min(72vw,260px)] rounded-2xl border border-white/10 bg-[#111823] px-3 py-2 text-left text-xs normal-case leading-relaxed tracking-normal text-slate-200 opacity-0 shadow-[0_18px_40px_rgba(0,0,0,0.45)] transition group-hover:opacity-100 peer-focus:opacity-100">
+      <InfoTooltip label={help}>
         {help}
-      </span>
+      </InfoTooltip>
     </div>
   );
 }
