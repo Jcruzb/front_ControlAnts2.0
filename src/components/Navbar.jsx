@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: "Gastos", path: "/expenses" },
   { label: "Ingresos", path: "/incomes" },
   { label: "Dashboard", path: "/dashboard" },
+  { label: "Categorías", path: "/categories" },
   { label: "Mi cuenta", path: "/account" },
 ];
 

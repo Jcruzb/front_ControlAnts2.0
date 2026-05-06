@@ -11,4 +11,8 @@ export async function createCategory(payload) {
   return api.post(BASE_URL, payload);
 }
 
+export async function updateCategory(id, payload) {
+  return api.patch(`${BASE_URL}${id}/`, payload);
+}
+
 export { getApiErrorMessage };

@@ -5,6 +5,14 @@ import MonthNavigation from "../components/MonthNavigation";
 import QuickAddIncome from "../components/QuickAddIncome";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
 import MobilePrimaryAction from "../components/MobilePrimaryAction";
+import { getCategories } from "../services/categories";
+import {
+  buildCategoryMap,
+  getCategoryDisplayColor,
+  getCategoryDisplayIcon,
+  getCategoryDisplayName,
+} from "../utils/categories";
+import { getPayerDisplayName } from "../utils/payers";
 
 const CATEGORY_COLORS = [
   "#22c55e",
@@ -33,13 +41,44 @@ function getFallbackColor(value) {
   return CATEGORY_COLORS[hashString(value) % CATEGORY_COLORS.length];
 }
 
-function getCategoryMeta(item) {
-  const category = item?.category_detail ?? {};
+function getCategoryMeta(item, categoryMap) {
+  const name = getCategoryDisplayName(item, categoryMap);
+  const color = getCategoryDisplayColor(item, categoryMap);
+
   return {
-    name: category.name || item?.category_name || "Sin categoría",
-    color: category.color || getFallbackColor(category.name || item?.category || item?.id),
-    icon: category.icon || "•",
+    name,
+    color: color || getFallbackColor(name || item?.category || item?.id),
+    icon: getCategoryDisplayIcon(item, categoryMap),
   };
+}
+
+function getExpenseIdentity(expense, index) {
+  if (expense?.id !== null && expense?.id !== undefined) {
+    return `id:${expense.id}`;
+  }
+
+  return [
+    "fallback",
+    expense?.date || "",
+    expense?.amount || "",
+    expense?.description || expense?.name || "",
+    expense?.category || "",
+    index,
+  ].join(":");
+}
+
+function dedupeExpenses(expenses = []) {
+  const seen = new Set();
+
+  return expenses.filter((expense, index) => {
+    const identity = getExpenseIdentity(expense, index);
+    if (seen.has(identity)) {
+      return false;
+    }
+
+    seen.add(identity);
+    return true;
+  });
 }
 
 function parseDateParts(value) {
@@ -248,6 +287,71 @@ function FlowComparison({ income, expenses, balance }) {
   );
 }
 
+function getExpensePayerLabel(expense) {
+  if (expense?.payer_detail) {
+    return getPayerDisplayName(expense.payer_detail);
+  }
+
+  if (expense?.payer !== null && expense?.payer !== undefined && expense.payer !== "") {
+    return `Pagador #${expense.payer}`;
+  }
+
+  return "Sin pagador";
+}
+
+function getExpensePayerKey(expense) {
+  const payerId = expense?.payer_detail?.id ?? expense?.payer;
+
+  if (payerId !== null && payerId !== undefined && payerId !== "") {
+    return `payer:${payerId}`;
+  }
+
+  return "payer:none";
+}
+
+function PayerSummary({ items, totalExpenses }) {
+  if (!items.length || totalExpenses <= 0) {
+    return (
+      <p className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
+        No hay pagos registrados para resumir por persona.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => {
+        const share = (item.total / totalExpenses) * 100;
+
+        return (
+          <div
+            key={item.key}
+            className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4"
+          >
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-white">{item.name}</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {item.count} movimiento{item.count === 1 ? "" : "s"} · {share.toFixed(1)}%
+                </p>
+              </div>
+              <p className="shrink-0 text-right text-sm font-semibold text-white">
+                {formatCurrency(item.total)}
+              </p>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full rounded-full bg-emerald-400"
+                style={{ width: `${Math.max(6, share)}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const {
@@ -267,6 +371,7 @@ const Dashboard = () => {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [recentIncomes, setRecentIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -276,12 +381,15 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
 
-        const [expensesResponse, incomesResponse] = await Promise.all([
+        const [expensesResponse, incomesResponse, categoriesResponse] = await Promise.all([
           api.get("/expenses/", { params: { year, month } }),
           api.get("/incomes/", { params: { year, month } }),
+          getCategories(),
         ]);
 
-        const normalizedExpenses = unwrapCollectionResponse(expensesResponse);
+        const normalizedExpenses = dedupeExpenses(
+          unwrapCollectionResponse(expensesResponse)
+        );
         const normalizedIncomes = unwrapCollectionResponse(incomesResponse);
 
         const expensesTotal = normalizedExpenses.reduce(
@@ -295,6 +403,7 @@ const Dashboard = () => {
         );
 
         setExpenses(normalizedExpenses);
+        setCategories(categoriesResponse);
         setTotalExpenses(expensesTotal);
         setTotalIncome(incomesTotal);
         setRecentIncomes(
@@ -315,17 +424,39 @@ const Dashboard = () => {
 
   const balance = totalIncome - totalExpenses;
   const balancePositive = balance >= 0;
+  const categoryMap = useMemo(() => buildCategoryMap(categories), [categories]);
 
   const expenseCategories = useMemo(() => {
     const grouped = new Map();
 
     for (const expense of expenses) {
-      const meta = getCategoryMeta(expense);
+      const meta = getCategoryMeta(expense, categoryMap);
       const key = meta.name;
       const current = grouped.get(key) || {
         name: meta.name,
         color: meta.color,
         icon: meta.icon,
+        total: 0,
+        count: 0,
+      };
+
+      current.total += Number(expense.amount || 0);
+      current.count += 1;
+      grouped.set(key, current);
+    }
+
+    return [...grouped.values()].sort((a, b) => b.total - a.total);
+  }, [categoryMap, expenses]);
+
+  const payerSummary = useMemo(() => {
+    const grouped = new Map();
+
+    for (const expense of expenses) {
+      const key = getExpensePayerKey(expense);
+      const name = getExpensePayerLabel(expense);
+      const current = grouped.get(key) || {
+        key,
+        name,
         total: 0,
         count: 0,
       };
@@ -472,7 +603,7 @@ const Dashboard = () => {
         </ChartShell>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-5 xl:grid-cols-3">
         <div className="min-w-0 rounded-3xl border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] sm:p-6">
           <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="min-w-0">
@@ -575,6 +706,19 @@ const Dashboard = () => {
             </div>
           )}
         </div>
+
+        <div className="min-w-0 rounded-3xl border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] sm:p-6">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold tracking-tight text-white sm:text-lg">
+              Pagado por persona
+            </h2>
+            <p className="text-sm text-slate-400">
+              Total de gastos del mes agrupado por pagador
+            </p>
+          </div>
+
+          <PayerSummary items={payerSummary} totalExpenses={totalExpenses} />
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap">
@@ -591,15 +735,19 @@ const Dashboard = () => {
             setLoading(true);
             setError(null);
             try {
-              const [expensesResponse, incomesResponse] = await Promise.all([
+              const [expensesResponse, incomesResponse, categoriesResponse] = await Promise.all([
                 api.get("/expenses/", { params: { year, month } }),
                 api.get("/incomes/", { params: { year, month } }),
+                getCategories(),
               ]);
 
-              const normalizedExpenses = unwrapCollectionResponse(expensesResponse);
+              const normalizedExpenses = dedupeExpenses(
+                unwrapCollectionResponse(expensesResponse)
+              );
               const normalizedIncomes = unwrapCollectionResponse(incomesResponse);
 
               setExpenses(normalizedExpenses);
+              setCategories(categoriesResponse);
               setTotalExpenses(
                 normalizedExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0)
               );
