@@ -29,7 +29,7 @@ export default function ListControls({
   return (
     <section className="w-full min-w-0 max-w-full overflow-hidden rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:p-5">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-black/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-white/8 bg-black/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">
               Exploración
@@ -42,7 +42,7 @@ export default function ListControls({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             {hasActiveFilters ? (
               <button
                 type="button"
@@ -66,7 +66,7 @@ export default function ListControls({
         {expanded ? (
           <>
             <div
-              className={`grid gap-3 lg:items-center ${
+              className={`grid min-w-0 gap-3 lg:items-center ${
                 extraSelectOptions.length > 0 || secondarySelectOptions.length > 0
                   ? secondarySelectOptions.length > 0
                     ? "lg:grid-cols-[minmax(0,1fr)_200px_200px_200px]"
@@ -74,23 +74,23 @@ export default function ListControls({
                   : "lg:grid-cols-[minmax(0,1fr)_220px]"
               }`}
             >
-              <label className="block">
+              <label className="block min-w-0">
                 <span className="sr-only">Buscar</span>
                 <input
                   type="search"
                   value={searchValue}
                   onChange={(event) => onSearchChange(event.target.value)}
                   placeholder={searchPlaceholder}
-                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
+                  className="w-full min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-400/50"
                 />
               </label>
 
-              <label className="block">
+              <label className="block min-w-0">
                 <span className="sr-only">Ordenar</span>
                 <select
                   value={sortValue}
                   onChange={(event) => onSortChange(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400/50"
+                  className="w-full min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400/50"
                 >
                   {sortOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -101,12 +101,12 @@ export default function ListControls({
               </label>
 
               {extraSelectOptions.length > 0 ? (
-                <label className="block">
+                <label className="block min-w-0">
                   <span className="sr-only">{extraSelectLabel}</span>
                   <select
                     value={extraSelectValue}
                     onChange={(event) => onExtraSelectChange?.(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400/50"
+                    className="w-full min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400/50"
                   >
                     {extraSelectOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -118,12 +118,12 @@ export default function ListControls({
               ) : null}
 
               {secondarySelectOptions.length > 0 ? (
-                <label className="block">
+                <label className="block min-w-0">
                   <span className="sr-only">{secondarySelectLabel}</span>
                   <select
                     value={secondarySelectValue}
                     onChange={(event) => onSecondarySelectChange?.(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400/50"
+                    className="w-full min-w-0 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400/50"
                   >
                     {secondarySelectOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -136,7 +136,7 @@ export default function ListControls({
             </div>
 
             {filterOptions.length > 0 ? (
-              <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+              <div className="flex max-w-full flex-wrap gap-2 pb-1">
                 {filterOptions.map((option) => {
                   const active = option.value === filterValue;
 
