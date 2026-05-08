@@ -28,6 +28,11 @@ import {
 } from "../services/incomePlans";
 import recurringPaymentsService from "../services/recurringPaymentsService";
 import { parseAmount } from "../utils/amounts";
+import {
+  buildCategoryMap,
+  getCategoryDisplayIcon,
+  getCategoryDisplayName,
+} from "../utils/categories";
 import { getTodayLocalDate } from "../utils/date";
 import { getPayerDisplayName } from "../utils/payers";
 
@@ -101,6 +106,96 @@ function getBudgetExpenseCategoryName(expense) {
   return null;
 }
 
+function getExpenseCategoryValue(expense) {
+  if (expense?.category_detail?.id != null) {
+    return String(expense.category_detail.id);
+  }
+
+  if (expense?.category?.id != null) {
+    return String(expense.category.id);
+  }
+
+  if (typeof expense?.category === "number" || typeof expense?.category === "string") {
+    return String(expense.category);
+  }
+
+  return getBudgetExpenseCategoryName(expense)?.toLowerCase() || "uncategorized";
+}
+
+function getExpenseDisplayName(expense) {
+  if (typeof expense?.name === "string" && expense.name.trim()) {
+    return expense.name.trim();
+  }
+
+  if (typeof expense?.description === "string" && expense.description.trim()) {
+    return expense.description.trim();
+  }
+
+  if (expense?.id != null) {
+    return `Gasto #${expense.id}`;
+  }
+
+  return "Gasto";
+}
+
+function getExpenseIdentity(expense, index) {
+  if (expense?.id != null) {
+    return `expense-${expense.id}`;
+  }
+
+  return [
+    "expense",
+    expense?.date || "",
+    expense?.amount || "",
+    expense?.description || expense?.name || "",
+    expense?.category || "",
+    index,
+  ].join(":");
+}
+
+function isRecurringLinkedExpense(expense) {
+  return Boolean(
+    expense?.recurring_payment ||
+      expense?.recurring_payment_id ||
+      expense?.recurring_payment_detail ||
+      expense?.is_recurring === true
+  );
+}
+
+function getExpenseTimestamp(expense) {
+  if (!expense?.date) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const timestamp = new Date(expense.date).getTime();
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+}
+
+function formatBudgetDisplayDate(value) {
+  if (!value) {
+    return "Sin fecha";
+  }
+
+  const text = String(value);
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+
+  const date = new Date(text);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Sin fecha";
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 function getBudgetPaymentState(item) {
   const planned = Number(item?.planned_amount || 0);
   const spent = Number(item?.spent_amount || 0);
@@ -153,6 +248,52 @@ function MetricLabel({ children, help }) {
         {help}
       </InfoTooltip>
     </div>
+  );
+}
+
+function VariableExpenseItem({ expense, categoryMap }) {
+  const title = getExpenseDisplayName(expense);
+  const categoryName = getCategoryDisplayName(expense, categoryMap);
+  const categoryIcon = getCategoryDisplayIcon(expense, categoryMap, "💸");
+  const payerName = expense?.payer_detail
+    ? getPayerDisplayName(expense.payer_detail)
+    : null;
+
+  return (
+    <article className="w-full min-w-0 rounded-[28px] border border-blue-400/14 bg-blue-500/[0.055] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.18)]">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-blue-300/15 bg-white/[0.05] text-lg">
+            {categoryIcon}
+          </span>
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-semibold tracking-tight text-white">
+              {title}
+            </h3>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+              <span>{categoryName}</span>
+              <span className="text-slate-600">·</span>
+              <span>{formatBudgetDisplayDate(expense.date)}</span>
+              {payerName ? (
+                <>
+                  <span className="text-slate-600">·</span>
+                  <span>Paga: {payerName}</span>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <span className="inline-flex rounded-full border border-blue-300/20 bg-blue-500/12 px-2.5 py-1 text-[11px] font-medium text-blue-100">
+            Variable
+          </span>
+          <p className="mt-2 text-sm font-semibold text-white">
+            {Number(expense?.amount || 0).toFixed(2)} €
+          </p>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -756,6 +897,37 @@ export default function Budget() {
   const plannedBalanceText = plannedBalanceLoading
     ? "Calculando..."
     : `${plannedBalanceState}: ${plannedBalance.toFixed(2)} €`;
+  const expenseCategoryMap = useMemo(
+    () => buildCategoryMap(expenseCategories),
+    [expenseCategories]
+  );
+  const dedupedBudgetExpenses = useMemo(() => {
+    const seen = new Set();
+
+    return budgetExpenses.filter((expense, index) => {
+      const identity = getExpenseIdentity(expense, index);
+
+      if (seen.has(identity)) {
+        return false;
+      }
+
+      seen.add(identity);
+      return true;
+    });
+  }, [budgetExpenses]);
+  const variableExpenses = useMemo(() => {
+    return dedupedBudgetExpenses
+      .filter((expense) => !isRecurringLinkedExpense(expense))
+      .sort((a, b) => {
+        const dateDiff = getExpenseTimestamp(b) - getExpenseTimestamp(a);
+
+        if (dateDiff !== 0) {
+          return dateDiff;
+        }
+
+        return Number(b?.amount || 0) - Number(a?.amount || 0);
+      });
+  }, [dedupedBudgetExpenses]);
 
   const budgetCategoryOptions = useMemo(() => {
     const categoryMap = new Map();
@@ -778,13 +950,22 @@ export default function Budget() {
       }
     });
 
+    variableExpenses.forEach((expense) => {
+      const value = getExpenseCategoryValue(expense);
+      const label = getCategoryDisplayName(expense, expenseCategoryMap);
+
+      if (!categoryMap.has(value)) {
+        categoryMap.set(value, label);
+      }
+    });
+
     return [
       { value: "all", label: "Todas las categorias" },
       ...Array.from(categoryMap.entries())
         .map(([value, label]) => ({ value, label }))
         .sort((a, b) => a.label.localeCompare(b.label, "es")),
     ];
-  }, [planned, recurring]);
+  }, [expenseCategoryMap, planned, recurring, variableExpenses]);
 
   const filteredPlanned = useMemo(() => {
     const normalizedSearch = budgetSearch.trim().toLowerCase();
@@ -900,8 +1081,44 @@ export default function Budget() {
       });
   }, [budgetCategoryFilter, budgetFilter, budgetSearch, budgetSort, recurring]);
 
-  const visibleBudgetItems = filteredPlanned.length + filteredRecurring.length;
-  const totalBudgetItems = planned.length + recurring.length;
+  const filteredVariableExpenses = useMemo(() => {
+    const normalizedSearch = budgetSearch.trim().toLowerCase();
+
+    return variableExpenses.filter((expense) => {
+      const matchesFilter = budgetFilter === "all" || budgetFilter === "paid";
+      const matchesCategory =
+        budgetCategoryFilter === "all" ||
+        getExpenseCategoryValue(expense) === budgetCategoryFilter;
+      const categoryName = getCategoryDisplayName(expense, expenseCategoryMap);
+      const payerName = expense?.payer_detail
+        ? getPayerDisplayName(expense.payer_detail)
+        : "";
+      const searchText = [
+        getExpenseDisplayName(expense),
+        categoryName,
+        payerName,
+        expense?.amount,
+        expense?.date,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const matchesSearch =
+        normalizedSearch.length === 0 || searchText.includes(normalizedSearch);
+
+      return matchesFilter && matchesCategory && matchesSearch;
+    });
+  }, [
+    budgetCategoryFilter,
+    budgetFilter,
+    budgetSearch,
+    expenseCategoryMap,
+    variableExpenses,
+  ]);
+
+  const visibleBudgetItems =
+    filteredPlanned.length + filteredRecurring.length + filteredVariableExpenses.length;
+  const totalBudgetItems = planned.length + recurring.length + variableExpenses.length;
   const hasActiveBudgetFilters =
     budgetSearch.trim().length > 0 ||
     budgetSort !== "payment_asc" ||
@@ -1430,56 +1647,80 @@ export default function Budget() {
             )}
           </section>
 
-          {recurring.length > 0 && budgetView === "expenses" ? (
+          {(recurring.length > 0 || variableExpenses.length > 0) &&
+          budgetView === "expenses" ? (
             <section className="space-y-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
-                  Gastos fijos
+                  Fijos y variables
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                  Pagos recurrentes
+                  Pagos del mes
                 </h2>
               </div>
               <div className="space-y-3">
-                {filteredRecurring.length > 0 ? (
-                  filteredRecurring.map((item) => {
-                    const reversibleExpense = getQuickPayExpenseForItem(item, "recurring");
-                    const itemActionKey = `recurring-${item.id}`;
+                {filteredRecurring.length > 0 || filteredVariableExpenses.length > 0 ? (
+                  <>
+                    {filteredRecurring.length > 0 ? (
+                      <div className="space-y-3">
+                        {filteredRecurring.map((item) => {
+                          const reversibleExpense = getQuickPayExpenseForItem(item, "recurring");
+                          const itemActionKey = `recurring-${item.id}`;
 
-                    return (
-                    <BudgetItem
-                      key={`recurring-${item.id}`}
-                      type="recurring"
-                      item={item}
-                      icon="🔁"
-                      isExpanded={expandedRecurringExpenseId === String(item.id)}
-                      onToggle={(selectedItem) =>
-                        setExpandedRecurringExpenseId((current) =>
-                          current === String(selectedItem.id)
-                            ? null
-                            : String(selectedItem.id)
-                        )
-                      }
-                      onQuickAddSubmit={handleQuickAddSubmit}
-                      onQuickPayTotal={openQuickPayTotal}
-                      onQuickRevertTotal={handleQuickRevertPlannedExpense}
-                      canQuickRevert={Boolean(reversibleExpense)}
-                      quickActionLoading={
-                        activeQuickBudgetAction?.id === itemActionKey
-                          ? activeQuickBudgetAction.type
-                          : null
-                      }
-                      budgetYear={year}
-                      budgetMonth={month}
-                      onOpenDetails={openBudgetItemDetail}
-                      payers={payers}
-                      payersError={payersError}
-                    />
-                    );
-                  })
+                          return (
+                            <BudgetItem
+                              key={`recurring-${item.id}`}
+                              type="recurring"
+                              item={item}
+                              icon="🔁"
+                              isExpanded={expandedRecurringExpenseId === String(item.id)}
+                              onToggle={(selectedItem) =>
+                                setExpandedRecurringExpenseId((current) =>
+                                  current === String(selectedItem.id)
+                                    ? null
+                                    : String(selectedItem.id)
+                                )
+                              }
+                              onQuickAddSubmit={handleQuickAddSubmit}
+                              onQuickPayTotal={openQuickPayTotal}
+                              onQuickRevertTotal={handleQuickRevertPlannedExpense}
+                              canQuickRevert={Boolean(reversibleExpense)}
+                              quickActionLoading={
+                                activeQuickBudgetAction?.id === itemActionKey
+                                  ? activeQuickBudgetAction.type
+                                  : null
+                              }
+                              budgetYear={year}
+                              budgetMonth={month}
+                              onOpenDetails={openBudgetItemDetail}
+                              payers={payers}
+                              payersError={payersError}
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : null}
+
+                    {filteredVariableExpenses.length > 0 ? (
+                      <div className="space-y-3">
+                        {filteredRecurring.length > 0 ? (
+                          <p className="px-1 pt-2 text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                            Gastos variables
+                          </p>
+                        ) : null}
+                        {filteredVariableExpenses.map((expense, index) => (
+                          <VariableExpenseItem
+                            key={getExpenseIdentity(expense, index)}
+                            expense={expense}
+                            categoryMap={expenseCategoryMap}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </>
                 ) : (
                   <div className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
-                    No hay gastos fijos con estos filtros.
+                    No hay pagos del mes con estos filtros.
                   </div>
                 )}
               </div>
