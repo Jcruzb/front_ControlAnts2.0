@@ -197,6 +197,8 @@ export default function Budget() {
   const [budgetFilter, setBudgetFilter] = useState("all");
   const [budgetCategoryFilter, setBudgetCategoryFilter] = useState("all");
   const [budgetView, setBudgetView] = useState("expenses");
+  const [expandedPlannedExpenseId, setExpandedPlannedExpenseId] = useState(null);
+  const [expandedRecurringExpenseId, setExpandedRecurringExpenseId] = useState(null);
   const [activeQuickBudgetAction, setActiveQuickBudgetAction] = useState(null);
   const [quickPayTotalState, setQuickPayTotalState] = useState({
     isOpen: false,
@@ -334,6 +336,11 @@ export default function Budget() {
         );
       });
   }, [fetchBudget, fetchIncomePlanMonth, fetchIncomes, fetchBudgetExpenses]);
+
+  useEffect(() => {
+    setExpandedPlannedExpenseId(null);
+    setExpandedRecurringExpenseId(null);
+  }, [month, year]);
 
   async function handleQuickAddSubmit({
     amount,
@@ -673,6 +680,14 @@ export default function Budget() {
     return incomes.reduce((sum, inc) => sum + Number(inc.amount || 0), 0);
   }, [incomes]);
 
+  const totalSpentFromBudget = Number(data?.total_spent || 0);
+  const totalSpentFromExpenses = useMemo(() => {
+    return budgetExpenses.reduce(
+      (sum, expense) => sum + Number(expense?.amount || 0),
+      0
+    );
+  }, [budgetExpenses]);
+
   const incomePlanMonthBlock = useMemo(() => {
     return incomePlanMonthData ?? data?.income_plan_month ?? null;
   }, [data?.income_plan_month, incomePlanMonthData]);
@@ -696,7 +711,6 @@ export default function Budget() {
     };
   }, [incomePlanMonthBlock]);
 
-  const totalSpent = data?.total_spent || 0;
   const plannedRecurringIncome = useMemo(() => {
     return normalizedIncomePlanMonth.items.reduce((sum, item) => {
       if (item.status !== "PENDING") {
@@ -708,7 +722,9 @@ export default function Budget() {
   }, [normalizedIncomePlanMonth.items]);
 
   const totalIncomeWithRecurring = totalIncome + plannedRecurringIncome;
-  const net = totalIncomeWithRecurring - totalSpent;
+  const totalSpentReal =
+    budgetExpenses.length > 0 ? totalSpentFromExpenses : totalSpentFromBudget;
+  const balanceReal = totalIncomeWithRecurring - totalSpentReal;
   const selectedMonthId = data?.month_id ?? data?.income_plan_month?.month_id ?? null;
   const budgetData = data ?? EMPTY_BUDGET;
   const {
@@ -1072,17 +1088,18 @@ export default function Budget() {
     }
   }
 
+  const displayStatus = balanceReal < 0 ? "over" : status;
   const statusText =
-    status === "over"
+    displayStatus === "over"
       ? "Te has pasado este mes"
-      : status === "warning"
+      : displayStatus === "warning"
       ? "Ojo, estás cerca del límite"
       : "Vas bien este mes";
 
   const statusColor =
-    status === "over"
+    displayStatus === "over"
       ? "text-red-300"
-      : status === "warning"
+      : displayStatus === "warning"
       ? "text-amber-300"
       : "text-emerald-300";
 
@@ -1131,7 +1148,7 @@ export default function Budget() {
                   Pagado
                 </MetricLabel>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                  {totalSpent} €
+                  {totalSpentReal.toFixed(2)} €
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
@@ -1143,15 +1160,15 @@ export default function Budget() {
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Diferencia entre los ingresos considerados y los gastos ya pagados.">
+                <MetricLabel help="Balance real del mes: ingresos menos todos los gastos registrados, incluyendo gastos planificados, recurrentes y gastos no planificados.">
                   Balance
                 </MetricLabel>
                 <p
                   className={`mt-2 text-2xl font-semibold tracking-tight ${
-                    net >= 0 ? "text-emerald-300" : "text-red-300"
+                    balanceReal >= 0 ? "text-emerald-300" : "text-red-300"
                   }`}
                 >
-                  {net.toFixed(2)} €
+                  {balanceReal.toFixed(2)} €
                 </p>
               </div>
             </div>
@@ -1289,14 +1306,14 @@ export default function Budget() {
               </div>
               <div
                 className={`rounded-[28px] border border-white/8 bg-black/20 p-4 ${
-                  net < 0 ? "text-red-300" : "text-emerald-300"
+                  balanceReal < 0 ? "text-red-300" : "text-emerald-300"
                 }`}
               >
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                   Balance
                 </p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">
-                  {net.toFixed(2)} €
+                  {balanceReal.toFixed(2)} €
                 </p>
               </div>
               <div className="rounded-[28px] border border-white/8 bg-black/20 p-4">
@@ -1380,6 +1397,14 @@ export default function Budget() {
                     type="planned"
                     item={item}
                     icon="🛒"
+                    isExpanded={expandedPlannedExpenseId === String(item.id)}
+                    onToggle={(selectedItem) =>
+                      setExpandedPlannedExpenseId((current) =>
+                        current === String(selectedItem.id)
+                          ? null
+                          : String(selectedItem.id)
+                      )
+                    }
                     onQuickAddSubmit={handleQuickAddSubmit}
                     onQuickPayTotal={openQuickPayTotal}
                     onQuickRevertTotal={handleQuickRevertPlannedExpense}
@@ -1427,6 +1452,14 @@ export default function Budget() {
                       type="recurring"
                       item={item}
                       icon="🔁"
+                      isExpanded={expandedRecurringExpenseId === String(item.id)}
+                      onToggle={(selectedItem) =>
+                        setExpandedRecurringExpenseId((current) =>
+                          current === String(selectedItem.id)
+                            ? null
+                            : String(selectedItem.id)
+                        )
+                      }
                       onQuickAddSubmit={handleQuickAddSubmit}
                       onQuickPayTotal={openQuickPayTotal}
                       onQuickRevertTotal={handleQuickRevertPlannedExpense}

@@ -32,6 +32,8 @@ export default function BudgetItem({
   type = "planned",
   item,
   icon = "💸",
+  isExpanded = false,
+  onToggle,
   onQuickAddSubmit,
   onQuickPayTotal,
   onQuickRevertTotal,
@@ -90,20 +92,6 @@ export default function BudgetItem({
 
   if (!item) return null;
 
-  const handleCardClick = (event) => {
-    if (typeof onOpenDetails !== "function") return;
-
-    if (
-      event.target.closest(
-        'button, a, input, select, textarea, [data-no-detail-open="true"]'
-      )
-    ) {
-      return;
-    }
-
-    onOpenDetails(item, type);
-  };
-
   const quickActionLabel =
     canQuickRevert === true ? "Revertir pago" : "Pagar total";
   const quickActionAriaLabel =
@@ -114,107 +102,151 @@ export default function BudgetItem({
     canQuickRevert === true ? onQuickRevertTotal : onQuickPayTotal;
   const quickActionPendingLabel =
     canQuickRevert === true ? "Revirtiendo..." : "Pagando...";
+  const badgeLabel = type === "recurring" ? "Fijo" : "Planificado";
+  const detailsId = `budget-item-detail-${type}-${item.id}`;
+  const toggleLabel = isExpanded
+    ? `Ocultar detalle de ${title}`
+    : `Ver detalle de ${title}`;
 
   return (
     <>
       <div
-        onClick={handleCardClick}
-        className={`group w-full min-w-0 max-w-full overflow-hidden rounded-[30px] border border-white/8 bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur-sm transition hover:border-white/12 hover:bg-white/[0.055] sm:p-5 ${
-          typeof onOpenDetails === "function" ? "cursor-pointer" : ""
+        className={`group w-full min-w-0 max-w-full overflow-hidden rounded-[30px] border bg-white/[0.04] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)] backdrop-blur-sm transition hover:bg-white/[0.055] sm:p-5 ${
+          isExpanded ? "border-blue-300/25" : "border-white/8 hover:border-white/12"
         }`}
       >
-        <div className="mb-4 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-lg shadow-inner">
-                {icon}
-              </span>
+        <button
+          type="button"
+          onClick={() => onToggle?.(item, type)}
+          aria-expanded={isExpanded}
+          aria-controls={detailsId}
+          aria-label={toggleLabel}
+          className="w-full text-left"
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-lg shadow-inner">
+              {icon}
+            </span>
 
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-base font-semibold tracking-tight text-white">
-                  {title}
-                </h3>
-                <p className="mt-1 break-words text-xs text-slate-400">
-                  {item.spent_amount} € usados de {item.planned_amount} €
-                </p>
-                {payerName ? (
-                  <p className="mt-1 text-xs text-slate-500">Paga: {payerName}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-semibold tracking-tight text-white">
+                    {title}
+                  </h3>
+                  <p className="mt-1 break-words text-xs text-slate-400">
+                    {item.spent_amount} € usados de {item.planned_amount} €
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusStyles.badge}`}
+                  >
+                    {badgeLabel}
+                  </span>
+                  <span
+                    className={`text-sm text-slate-400 transition ${
+                      isExpanded ? "rotate-180" : ""
+                    }`}
+                    aria-hidden="true"
+                  >
+                    ⌄
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </button>
+
+        <div id={detailsId} hidden={!isExpanded}>
+          {isExpanded ? (
+            <div className="mt-4 space-y-4 border-t border-white/8 pt-4">
+              {payerName ? (
+                <p className="text-xs text-slate-500">Paga: {payerName}</p>
+              ) : null}
+
+              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
+                {typeof quickActionHandler === "function" && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      quickActionHandler(item, type);
+                    }}
+                    disabled={quickActionLoading !== null}
+                    className={`w-full rounded-2xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${
+                      canQuickRevert
+                        ? "border border-white/10 bg-white/[0.05] text-slate-100 hover:border-white/20 hover:bg-white/[0.09]"
+                        : "border border-emerald-400/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20"
+                    }`}
+                    aria-label={quickActionAriaLabel}
+                  >
+                    {quickActionLoading !== null
+                      ? quickActionPendingLabel
+                      : quickActionLabel}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsQuickAddOpen(true);
+                  }}
+                  className="w-full shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98] sm:w-auto"
+                  aria-label={`Añadir gasto a ${title}`}
+                >
+                  + gasto
+                </button>
+
+                {typeof onOpenDetails === "function" ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpenDetails(item, type);
+                    }}
+                    className="w-full shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98] sm:w-auto"
+                    aria-label={`Ver historial de ${title}`}
+                  >
+                    Ver detalle
+                  </button>
                 ) : null}
               </div>
 
-              {type === "recurring" && (
-                <span
-                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusStyles.badge}`}
-                >
-                  Fijo
-                </span>
-              )}
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div className="min-w-0">
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                    <div
+                      className={`h-full rounded-full ${statusStyles.bar}`}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-500">
+                      {progress.toFixed(2)}% consumido
+                    </span>
+                    <span className={`break-words text-right ${statusStyles.hint}`}>
+                      {item.remaining_amount >= 0
+                        ? `${item.remaining_amount} € disponibles`
+                        : statusStyles.hintText}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3 text-right">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                    Restante
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-white">
+                    {item.remaining_amount} €
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto">
-            {typeof quickActionHandler === "function" && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  quickActionHandler(item, type);
-                }}
-                disabled={quickActionLoading !== null}
-                className={`w-full rounded-2xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${
-                  canQuickRevert
-                    ? "border border-white/10 bg-white/[0.05] text-slate-100 hover:border-white/20 hover:bg-white/[0.09]"
-                    : "border border-emerald-400/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20"
-                }`}
-                aria-label={quickActionAriaLabel}
-              >
-                {quickActionLoading !== null
-                  ? quickActionPendingLabel
-                  : quickActionLabel}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsQuickAddOpen(true);
-              }}
-              className="w-full shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98] sm:w-auto"
-              aria-label={`Añadir gasto a ${title}`}
-            >
-              + gasto
-            </button>
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-          <div className="min-w-0">
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className={`h-full rounded-full ${statusStyles.bar}`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-              <span className="text-slate-500">{progress.toFixed(2)}% consumido</span>
-              <span className={`break-words text-right ${statusStyles.hint}`}>
-                {item.remaining_amount >= 0
-                  ? `${item.remaining_amount} € disponibles`
-                  : statusStyles.hintText}
-              </span>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3 text-right">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-              Restante
-            </p>
-            <p className="mt-1 text-lg font-semibold text-white">
-              {item.remaining_amount} €
-            </p>
-          </div>
+          ) : null}
         </div>
       </div>
 
