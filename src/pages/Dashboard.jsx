@@ -186,16 +186,10 @@ function getMonthIndex(year, month) {
   return year * 12 + (month - 1);
 }
 
-function getMonthDistance(startYear, startMonth, endYear, endMonth) {
-  return getMonthIndex(endYear, endMonth) - getMonthIndex(startYear, startMonth);
-}
-
-function addMonths(year, month, offset) {
-  const date = new Date(year, month - 1 + offset, 1);
-
+function getMonthFromIndex(monthIndex) {
   return {
-    year: date.getFullYear(),
-    month: date.getMonth() + 1,
+    year: Math.floor(monthIndex / 12),
+    month: (monthIndex % 12) + 1,
   };
 }
 
@@ -311,14 +305,15 @@ function calculateRecurringPendingProjection({
     return null;
   }
 
-  const monthDistance = getMonthDistance(
-    activeYear,
-    activeMonth,
-    endParts.year,
-    endParts.month
-  );
+  const startParts = parseDateParts(recurring.start_date);
+  const activeMonthIndex = getMonthIndex(activeYear, activeMonth);
+  const startMonthIndex = startParts
+    ? getMonthIndex(startParts.year, startParts.month)
+    : activeMonthIndex;
+  const endMonthIndex = getMonthIndex(endParts.year, endParts.month);
+  const projectionStartMonthIndex = Math.max(activeMonthIndex, startMonthIndex);
 
-  if (monthDistance < 0) {
+  if (projectionStartMonthIndex > endMonthIndex) {
     return null;
   }
 
@@ -334,9 +329,13 @@ function calculateRecurringPendingProjection({
   const currentMonthRemaining = Math.max(monthlyAmount - paidThisMonth, 0);
   const pendingMonths = [];
 
-  for (let offset = 0; offset <= monthDistance; offset += 1) {
-    const target = addMonths(activeYear, activeMonth, offset);
-    const isActiveMonth = offset === 0;
+  for (
+    let monthIndex = projectionStartMonthIndex;
+    monthIndex <= endMonthIndex;
+    monthIndex += 1
+  ) {
+    const target = getMonthFromIndex(monthIndex);
+    const isActiveMonth = monthIndex === activeMonthIndex;
     const amount = isActiveMonth ? currentMonthRemaining : monthlyAmount;
 
     if (amount <= 0) {
