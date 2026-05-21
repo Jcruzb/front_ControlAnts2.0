@@ -6,6 +6,7 @@ import QuickAddIncome from "../components/QuickAddIncome";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
 import MobilePrimaryAction from "../components/MobilePrimaryAction";
 import { getCategories } from "../services/categories";
+import recurringPaymentsService from "../services/recurringPaymentsService";
 import {
   buildCategoryMap,
   getCategoryDisplayColor,
@@ -175,9 +176,199 @@ function getExpenseTimestamp(expense) {
 function isRecurringExpense(expense) {
   return Boolean(
     expense?.recurring_payment ||
+      expense?.recurring_payment_id ||
       expense?.recurring_payment_detail ||
       expense?.is_recurring === true
   );
+}
+
+function getMonthIndex(year, month) {
+  return year * 12 + (month - 1);
+}
+
+function getMonthDistance(startYear, startMonth, endYear, endMonth) {
+  return getMonthIndex(endYear, endMonth) - getMonthIndex(startYear, startMonth);
+}
+
+function addMonths(year, month, offset) {
+  const date = new Date(year, month - 1 + offset, 1);
+
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+  };
+}
+
+function formatMonthShort(year, month, includeYear = false) {
+  const formatted = new Intl.DateTimeFormat("es-ES", {
+    month: "short",
+    ...(includeYear ? { year: "numeric" } : {}),
+  })
+    .format(new Date(year, month - 1, 1))
+    .replace(".", "");
+
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+function getRecurringPaymentId(expense) {
+  const rawId =
+    expense?.recurring_payment_detail?.id ??
+    expense?.recurring_payment?.id ??
+    expense?.recurring_payment_id ??
+    expense?.recurring_payment;
+
+  if (rawId === null || rawId === undefined || rawId === "") {
+    return null;
+  }
+
+  const numericId = Number(rawId);
+  return Number.isFinite(numericId) ? numericId : null;
+}
+
+function buildRecurringSpentFallback(expenses) {
+  const spentByRecurring = new Map();
+
+  for (const expense of expenses) {
+    const recurringId = getRecurringPaymentId(expense);
+    if (!recurringId) continue;
+
+    spentByRecurring.set(
+      recurringId,
+      (spentByRecurring.get(recurringId) || 0) + Number(expense?.amount || 0)
+    );
+  }
+
+  return spentByRecurring;
+}
+
+function buildBudgetRecurringMap(items) {
+  const map = new Map();
+
+  for (const item of items) {
+    const numericId = Number(item?.id);
+    if (Number.isFinite(numericId)) {
+      map.set(numericId, item);
+    }
+  }
+
+  return map;
+}
+
+function getRecurringMonthlyAmount(recurring, budgetItem) {
+  const rawAmount =
+    budgetItem?.planned_amount ??
+    budgetItem?.amount ??
+    recurring?.amount ??
+    recurring?.planned_amount;
+  const amount = Number(rawAmount || 0);
+
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function getRecurringPaidThisMonth(recurring, budgetItem, spentFallback) {
+  const budgetSpent = Number(budgetItem?.spent_amount);
+
+  if (Number.isFinite(budgetSpent)) {
+    return budgetSpent;
+  }
+
+  const recurringId = Number(recurring?.id);
+
+  return Number.isFinite(recurringId) ? spentFallback.get(recurringId) || 0 : 0;
+}
+
+function getRecurringPayerName(recurring, budgetItem) {
+  const payerDetail = recurring?.payer_detail ?? budgetItem?.payer_detail;
+
+  if (payerDetail) {
+    return getPayerDisplayName(payerDetail);
+  }
+
+  if (recurring?.payer !== null && recurring?.payer !== undefined && recurring.payer !== "") {
+    return `Pagador #${recurring.payer}`;
+  }
+
+  if (budgetItem?.payer !== null && budgetItem?.payer !== undefined && budgetItem.payer !== "") {
+    return `Pagador #${budgetItem.payer}`;
+  }
+
+  return null;
+}
+
+function calculateRecurringPendingProjection({
+  recurring,
+  budgetItem,
+  spentFallback,
+  activeYear,
+  activeMonth,
+}) {
+  if (!recurring?.end_date || recurring?.active !== true) {
+    return null;
+  }
+
+  const endParts = parseDateParts(recurring.end_date);
+  if (!endParts) {
+    return null;
+  }
+
+  const monthDistance = getMonthDistance(
+    activeYear,
+    activeMonth,
+    endParts.year,
+    endParts.month
+  );
+
+  if (monthDistance < 0) {
+    return null;
+  }
+
+  const monthlyAmount = getRecurringMonthlyAmount(recurring, budgetItem);
+  if (monthlyAmount <= 0) {
+    return null;
+  }
+
+  const paidThisMonth = Math.max(
+    getRecurringPaidThisMonth(recurring, budgetItem, spentFallback),
+    0
+  );
+  const currentMonthRemaining = Math.max(monthlyAmount - paidThisMonth, 0);
+  const pendingMonths = [];
+
+  for (let offset = 0; offset <= monthDistance; offset += 1) {
+    const target = addMonths(activeYear, activeMonth, offset);
+    const isActiveMonth = offset === 0;
+    const amount = isActiveMonth ? currentMonthRemaining : monthlyAmount;
+
+    if (amount <= 0) {
+      continue;
+    }
+
+    pendingMonths.push({
+      ...target,
+      label: formatMonthShort(target.year, target.month),
+      amount,
+      status: isActiveMonth && paidThisMonth > 0 ? "partial" : "pending",
+    });
+  }
+
+  const pendingTotal = pendingMonths.reduce((sum, item) => sum + item.amount, 0);
+
+  if (pendingTotal <= 0 || pendingMonths.length === 0) {
+    return null;
+  }
+
+  return {
+    id: recurring.id,
+    name: recurring.name || budgetItem?.name || "Pago fijo",
+    monthlyAmount,
+    endDate: recurring.end_date,
+    endLabel: formatMonthShort(endParts.year, endParts.month, true),
+    payerName: getRecurringPayerName(recurring, budgetItem),
+    paidThisMonth,
+    pendingMonths,
+    pendingMonthsCount: pendingMonths.length,
+    pendingTotal,
+  };
 }
 
 function ChartShell({ title, description, children, className = "" }) {
@@ -515,6 +706,121 @@ function PayerSummary({ items, totalExpenses }) {
   );
 }
 
+function DeadlineCommitmentsTimeline({ commitments }) {
+  if (!commitments.length) {
+    return (
+      <p className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
+        No hay pagos fijos activos con fecha de finalización y saldo pendiente
+        para este mes.
+      </p>
+    );
+  }
+
+  const totalPending = commitments.reduce(
+    (sum, item) => sum + item.pendingTotal,
+    0
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-[24px] border border-emerald-400/15 bg-emerald-500/10 px-4 py-3">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-200/70">
+            Pendiente total
+          </p>
+          <p className="mt-1 break-words text-xl font-semibold text-emerald-100">
+            {formatCurrency(totalPending)}
+          </p>
+        </div>
+        <div className="rounded-[24px] border border-blue-400/15 bg-blue-500/10 px-4 py-3">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-blue-200/70">
+            Compromisos
+          </p>
+          <p className="mt-1 text-xl font-semibold text-blue-100">
+            {commitments.length}
+          </p>
+        </div>
+        <div className="rounded-[24px] border border-white/8 bg-black/20 px-4 py-3">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+            Vista
+          </p>
+          <p className="mt-1 text-sm font-medium text-slate-200">
+            Meses pendientes hasta la fecha fin
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {commitments.map((commitment) => (
+          <article
+            key={commitment.id}
+            className="grid min-w-0 gap-4 overflow-hidden rounded-[28px] border border-white/8 bg-black/20 p-4 sm:grid-cols-[minmax(190px,260px)_minmax(0,1fr)] sm:items-center"
+          >
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-start justify-between gap-3 sm:block">
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-semibold text-white">
+                    {commitment.name}
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {formatCurrency(commitment.monthlyAmount)}/mes · termina{" "}
+                    {commitment.endLabel}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full border border-blue-300/20 bg-blue-500/12 px-2.5 py-1 text-[11px] font-medium text-blue-100 sm:mt-3 sm:inline-flex">
+                  {commitment.pendingMonthsCount} mes
+                  {commitment.pendingMonthsCount === 1 ? "" : "es"}
+                </span>
+              </div>
+              <p className="mt-3 break-words text-sm font-semibold text-emerald-200">
+                Pendiente: {formatCurrency(commitment.pendingTotal)}
+              </p>
+              {commitment.payerName ? (
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  Paga: {commitment.payerName}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="relative min-w-0">
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#090d12] to-transparent" />
+              <div className="max-w-full overflow-x-auto pb-1">
+                <div className="flex min-w-max gap-2 pr-8">
+                  {commitment.pendingMonths.map((monthItem) => {
+                    const isPartial = monthItem.status === "partial";
+
+                    return (
+                      <div
+                        key={`${commitment.id}-${monthItem.year}-${monthItem.month}`}
+                        className="w-[72px] shrink-0 sm:w-20"
+                      >
+                        <p className="truncate text-center text-[11px] font-medium text-slate-400">
+                          {monthItem.label}
+                        </p>
+                        <div
+                          className={`mt-2 h-9 rounded-2xl border shadow-[0_10px_22px_rgba(14,165,233,0.12)] ${
+                            isPartial
+                              ? "border-amber-300/25 bg-gradient-to-r from-amber-400/80 to-cyan-400/75"
+                              : "border-cyan-300/20 bg-gradient-to-r from-blue-500/80 to-cyan-400/80"
+                          }`}
+                          title={`${monthItem.label}: ${formatCurrency(monthItem.amount)}`}
+                        />
+                        <p className="mt-1 truncate text-center text-[10px] text-slate-500">
+                          {formatCurrency(monthItem.amount)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const {
@@ -535,6 +841,8 @@ const Dashboard = () => {
   const [recentIncomes, setRecentIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [recurringPayments, setRecurringPayments] = useState([]);
+  const [budgetRecurring, setBudgetRecurring] = useState([]);
   const [expandedCategoryKey, setExpandedCategoryKey] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -545,10 +853,24 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
 
-        const [expensesResponse, incomesResponse, categoriesResponse] = await Promise.all([
+        const [
+          expensesResponse,
+          incomesResponse,
+          categoriesResponse,
+          recurringResponse,
+          budgetResponse,
+        ] = await Promise.all([
           api.get("/expenses/", { params: { year, month } }),
           api.get("/incomes/", { params: { year, month } }),
           getCategories(),
+          recurringPaymentsService.getAll().catch((recurringError) => {
+            console.error(recurringError);
+            return [];
+          }),
+          api.get("/budget/", { params: { year, month } }).catch((budgetError) => {
+            console.error(budgetError);
+            return null;
+          }),
         ]);
 
         const normalizedExpenses = dedupeExpenses(
@@ -568,6 +890,10 @@ const Dashboard = () => {
 
         setExpenses(normalizedExpenses);
         setCategories(categoriesResponse);
+        setRecurringPayments(unwrapCollectionResponse(recurringResponse));
+        setBudgetRecurring(
+          Array.isArray(budgetResponse?.recurring) ? budgetResponse.recurring : []
+        );
         setTotalExpenses(expensesTotal);
         setTotalIncome(incomesTotal);
         setRecentIncomes(
@@ -667,6 +993,36 @@ const Dashboard = () => {
 
     return series;
   }, [expenses, month, year]);
+
+  const deadlineCommitments = useMemo(() => {
+    const spentFallback = buildRecurringSpentFallback(expenses);
+    const budgetRecurringMap = buildBudgetRecurringMap(budgetRecurring);
+
+    return recurringPayments
+      .map((recurring) =>
+        calculateRecurringPendingProjection({
+          recurring,
+          budgetItem: budgetRecurringMap.get(Number(recurring?.id)),
+          spentFallback,
+          activeYear: year,
+          activeMonth: month,
+        })
+      )
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aEnd = parseDateParts(a.endDate);
+        const bEnd = parseDateParts(b.endDate);
+        const endDiff =
+          getMonthIndex(aEnd?.year || 9999, aEnd?.month || 12) -
+          getMonthIndex(bEnd?.year || 9999, bEnd?.month || 12);
+
+        if (endDiff !== 0) {
+          return endDiff;
+        }
+
+        return b.pendingTotal - a.pendingTotal;
+      });
+  }, [budgetRecurring, expenses, month, recurringPayments, year]);
 
   if (loading) {
     return (
@@ -788,6 +1144,14 @@ const Dashboard = () => {
           className="xl:col-span-5"
         >
           <FlowComparison income={totalIncome} expenses={totalExpenses} balance={balance} />
+        </ChartShell>
+
+        <ChartShell
+          title="Compromisos con fecha límite"
+          description="Pagos fijos activos que tienen fecha fin y saldo proyectado pendiente."
+          className="xl:col-span-5"
+        >
+          <DeadlineCommitmentsTimeline commitments={deadlineCommitments} />
         </ChartShell>
       </section>
 
