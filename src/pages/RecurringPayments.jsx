@@ -5,6 +5,7 @@ import RecurringPaymentForm from "../components/RecurringPaymentForm";
 import ListControls from "../components/ListControls";
 import BulkImportModal from "../components/BulkImportModal";
 import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
+import ConfirmationModal from "../components/ConfirmationModal";
 import ExpenseFormModal from "../components/ExpenseFormModal";
 import api, { getApiErrorMessage } from "../services/api";
 import { getCategories } from "../services/categories";
@@ -20,6 +21,8 @@ import {
   readSpreadsheetRows,
 } from "../utils/spreadsheet";
 import { getPayerDisplayName } from "../utils/payers";
+import { useAuth } from "../hooks/useAuth";
+import { useBudgetMonth } from "../hooks/useBudgetMonth";
 
 /**
  * RecurringPayments
@@ -30,6 +33,9 @@ import { getPayerDisplayName } from "../utils/payers";
  * - NO registra pagos
  */
 export default function RecurringPayments() {
+  const { profile } = useAuth();
+  const { year, month, monthLabel } = useBudgetMonth();
+  const canManage = profile?.role === "admin";
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [payers, setPayers] = useState([]);
@@ -56,6 +62,11 @@ export default function RecurringPayments() {
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentFormLoading, setPaymentFormLoading] = useState(false);
   const [paymentFormError, setPaymentFormError] = useState(null);
+  const [monthStatusAction, setMonthStatusAction] = useState({
+    isCompleted: null,
+    loading: false,
+    error: null,
+  });
   const activeDetailRequestRef = useRef(0);
 
   // Mapa rápido de categorías por id
@@ -299,7 +310,10 @@ export default function RecurringPayments() {
     });
 
     try {
-      const detail = await recurringPaymentsService.getPayments(item.id);
+      const [detail, monthStatus] = await Promise.all([
+        recurringPaymentsService.getPayments(item.id),
+        recurringPaymentsService.getMonthStatus(item.id, year, month).catch(() => null),
+      ]);
       if (activeDetailRequestRef.current !== requestId) {
         return;
       }
@@ -308,7 +322,7 @@ export default function RecurringPayments() {
         isOpen: true,
         loading: false,
         error: null,
-        data: detail,
+        data: { ...detail, monthStatus },
       });
     } catch (detailError) {
       console.error(detailError);
@@ -330,6 +344,34 @@ export default function RecurringPayments() {
       });
     }
   };
+
+  async function confirmMonthStatusUpdate() {
+    if (!detailState.data?.id || typeof monthStatusAction.isCompleted !== "boolean") {
+      return;
+    }
+
+    try {
+      setMonthStatusAction((current) => ({ ...current, loading: true, error: null }));
+      const updated = await recurringPaymentsService.updateMonthStatus(
+        detailState.data.id,
+        year,
+        month,
+        monthStatusAction.isCompleted
+      );
+      setDetailState((current) => ({
+        ...current,
+        data: current.data ? { ...current.data, monthStatus: updated } : current.data,
+      }));
+      setMonthStatusAction({ isCompleted: null, loading: false, error: null });
+    } catch (statusError) {
+      console.error(statusError);
+      setMonthStatusAction((current) => ({
+        ...current,
+        loading: false,
+        error: getApiErrorMessage(statusError, "No se pudo actualizar el estado mensual"),
+      }));
+    }
+  }
 
   const closeRecurringDetail = () => {
     activeDetailRequestRef.current += 1;
@@ -665,19 +707,19 @@ export default function RecurringPayments() {
           >
             Descargar plantilla
           </button>
-          <button
+          {canManage ? <button
             type="button"
             onClick={() => setBulkImportOpen(true)}
             className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08]"
           >
             Importar Excel
-          </button>
-          <button
+          </button> : null}
+          {canManage ? <button
             onClick={openCreateModal}
             className="rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400"
           >
             + Añadir
-          </button>
+          </button> : <span className="text-sm text-slate-500">Solo lectura</span>}
         </div>
       </div>
 
@@ -744,12 +786,12 @@ export default function RecurringPayments() {
       ) : items.length === 0 ? (
         <div className="rounded-[30px] border border-dashed border-white/10 bg-white/[0.03] p-6 text-center text-slate-400">
           <p className="mb-2">Aún no tienes gastos fijos</p>
-          <button
+          {canManage ? <button
             onClick={openCreateModal}
             className="text-blue-300 transition hover:text-blue-200"
           >
             Añadir tu primer gasto fijo
-          </button>
+          </button> : null}
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="rounded-[30px] border border-dashed border-white/10 bg-white/[0.03] p-6 text-center text-slate-400">
@@ -766,13 +808,14 @@ export default function RecurringPayments() {
               onDeactivate={handleDeactivate}
               onReactivate={handleReactivate}
               onOpenDetails={openRecurringDetail}
+              canManage={canManage}
             />
           ))}
         </div>
       )}
 
       {/* Modal */}
-      <RecurringPaymentForm
+      {canManage ? <RecurringPaymentForm
         key={`recurring-payment-form-${modalSessionKey}-${editingItem?.id || "create"}`}
         isOpen={isModalOpen}
         onClose={closeModal}
@@ -784,9 +827,9 @@ export default function RecurringPayments() {
         onCategoryCreated={(newCategory) => {
           setCategories((prev) => [newCategory, ...prev]);
         }}
-      />
+      /> : null}
 
-      <BulkImportModal
+      {canManage ? <BulkImportModal
         isOpen={bulkImportOpen}
         onClose={() => setBulkImportOpen(false)}
         title="Cargar gastos fijos masivamente"
@@ -810,7 +853,7 @@ export default function RecurringPayments() {
         onConfirm={saveBulkRecurring}
         confirmLabel="Guardar gastos fijos"
         emptyPreviewMessage="Carga una plantilla Excel para previsualizar los gastos fijos."
-      />
+      /> : null}
 
       <ExpenseDetailSheet
         isOpen={detailState.isOpen}
@@ -856,6 +899,14 @@ export default function RecurringPayments() {
         payments={detailState.data?.payments || []}
         loading={detailState.loading}
         error={detailState.error}
+        monthStatus={detailState.data?.monthStatus || null}
+        monthStatusLoading={monthStatusAction.loading}
+        onUpdateMonthStatus={
+          detailState.data?.monthStatus
+            ? (isCompleted) =>
+                setMonthStatusAction({ isCompleted, loading: false, error: null })
+            : undefined
+        }
         emptyMessage="Este gasto fijo aún no tiene pagos registrados."
         onClose={closeRecurringDetail}
         onEditPayment={(payment) => {
@@ -866,6 +917,24 @@ export default function RecurringPayments() {
         getPaymentCategoryLabel={(payment) =>
           categoryMap[payment.category]?.name || null
         }
+      />
+
+      <ConfirmationModal
+        isOpen={typeof monthStatusAction.isCompleted === "boolean"}
+        title={monthStatusAction.isCompleted ? "¿Cerrar el pago de este mes?" : "¿Reabrir este pago?"}
+        description={
+          monthStatusAction.isCompleted
+            ? `Ya no aparecerá importe pendiente para ${monthLabel.toLowerCase()}. Podrás reabrirlo después.`
+            : `Volverá a mostrarse como pendiente la diferencia correspondiente a ${monthLabel.toLowerCase()}.`
+        }
+        confirmLabel={monthStatusAction.isCompleted ? "Cerrar pago del mes" : "Reabrir pago"}
+        loading={monthStatusAction.loading}
+        error={monthStatusAction.error}
+        onCancel={() => {
+          if (monthStatusAction.loading) return;
+          setMonthStatusAction({ isCompleted: null, loading: false, error: null });
+        }}
+        onConfirm={confirmMonthStatusUpdate}
       />
 
       <ExpenseFormModal

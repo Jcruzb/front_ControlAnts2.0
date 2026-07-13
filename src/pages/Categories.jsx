@@ -3,8 +3,9 @@ import AddCategoryModal from "../components/AddCategoryModal";
 import EditCategoryModal from "../components/EditCategoryModal";
 import { getApiErrorMessage } from "../services/api";
 import { getCategories } from "../services/categories";
+import { useAuth } from "../hooks/useAuth";
 
-function CategoryCard({ category, onEdit }) {
+function CategoryCard({ category, onEdit, canManage }) {
   return (
     <article className="min-w-0 rounded-[28px] border border-white/8 bg-black/20 p-4">
       <div className="flex min-w-0 items-start justify-between gap-4">
@@ -43,19 +44,21 @@ function CategoryCard({ category, onEdit }) {
           </div>
         </div>
 
-        <button
+        {canManage ? <button
           type="button"
           onClick={() => onEdit(category)}
           className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/[0.08]"
         >
           Editar
-        </button>
+        </button> : null}
       </div>
     </article>
   );
 }
 
 export default function Categories() {
+  const { profile } = useAuth();
+  const canManage = profile?.role === "admin";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -133,13 +136,15 @@ export default function Categories() {
             Gestiona nombres e iconos sin mezclarlo con la creación rápida.
           </p>
         </div>
-        <button
+        {canManage ? <button
           type="button"
           onClick={() => setCreateOpen(true)}
           className="w-full rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400 sm:w-auto"
         >
           + Crear categoría
-        </button>
+        </button> : (
+          <p className="text-sm text-slate-500">Solo lectura · gestión reservada a administradores</p>
+        )}
       </header>
 
       {sortedCategories.length === 0 ? (
@@ -153,24 +158,25 @@ export default function Categories() {
               key={category.id}
               category={category}
               onEdit={setEditingCategory}
+              canManage={canManage}
             />
           ))}
         </div>
       )}
 
-      <AddCategoryModal
+      {canManage ? <AddCategoryModal
         isOpen={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={mergeCategory}
-      />
+      /> : null}
 
-      <EditCategoryModal
+      {canManage ? <EditCategoryModal
         key={editingCategory?.id || "edit-category-closed"}
         isOpen={Boolean(editingCategory)}
         category={editingCategory}
         onClose={() => setEditingCategory(null)}
         onUpdated={mergeCategory}
-      />
+      /> : null}
     </section>
   );
 }

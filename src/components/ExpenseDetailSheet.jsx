@@ -21,6 +21,9 @@ export default function ExpenseDetailSheet({
   payments = [],
   loading = false,
   error = null,
+  monthStatus = null,
+  monthStatusLoading = false,
+  onUpdateMonthStatus,
   emptyMessage = "No hay pagos registrados.",
   onClose,
   onEditPayment,
@@ -106,7 +109,38 @@ export default function ExpenseDetailSheet({
             </div>
           ) : null}
 
-          <div className={meta.length > 0 ? "mt-6" : ""}>
+          {monthStatus && typeof onUpdateMonthStatus === "function" ? (
+            <div className={`${meta.length > 0 ? "mt-4" : ""} rounded-[24px] border border-blue-400/15 bg-blue-500/[0.07] p-4`}>
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">
+                    {monthStatus.is_completed
+                      ? "Pago cerrado para este mes"
+                      : "¿Ya está atendido todo lo de este mes?"}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-300">
+                    {monthStatus.is_completed
+                      ? "Ya no cuenta como pendiente. Reábrelo si necesitas modificar sus movimientos."
+                      : `Puedes cerrarlo aunque no haya pagos o el total pagado sea menor que lo planificado. La diferencia de ${Number(monthStatus.difference_amount || 0).toFixed(2)} € dejará de figurar como pendiente.`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onUpdateMonthStatus(!monthStatus.is_completed)}
+                  disabled={monthStatusLoading}
+                  className="min-h-11 w-full shrink-0 rounded-2xl bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                >
+                  {monthStatusLoading
+                    ? "Guardando…"
+                    : monthStatus.is_completed
+                      ? "Reabrir pago del mes"
+                      : "Cerrar pago del mes"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className={meta.length > 0 || monthStatus ? "mt-6" : ""}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">

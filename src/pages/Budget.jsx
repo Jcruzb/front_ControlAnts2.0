@@ -8,7 +8,9 @@ import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
 import ExpenseFormModal from "../components/ExpenseFormModal";
 import InfoTooltip from "../components/InfoTooltip";
 import QuickPayTotalModal from "../components/QuickPayTotalModal";
+import ConfirmationModal from "../components/ConfirmationModal";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
+import { useAuth } from "../hooks/useAuth";
 import api, {
   getApiErrorMessage,
   unwrapCollectionResponse,
@@ -27,6 +29,10 @@ import {
   getIncomePlansMonth,
 } from "../services/incomePlans";
 import recurringPaymentsService from "../services/recurringPaymentsService";
+import {
+  updateLegacyPlannedExpenseMonthStatus,
+  updatePlannedExpensePlanMonthStatus,
+} from "../services/plannedExpenses";
 import { parseAmount } from "../utils/amounts";
 import {
   buildCategoryMap,
@@ -35,6 +41,16 @@ import {
 } from "../utils/categories";
 import { getTodayLocalDate } from "../utils/date";
 import { getPayerDisplayName } from "../utils/payers";
+import {
+  formatDifference,
+  getPaidAmount,
+  getPaymentStatus,
+  getPendingAmount,
+  isCompletedMonthConflict,
+  isMonthCompleted,
+  mergeMonthStatus,
+  PAYMENT_STATUS_LABELS,
+} from "../utils/recurringMonthStatus";
 
 function getBudgetItemLabel(item, type) {
   if (type === "planned") {
@@ -166,7 +182,9 @@ function isPlannedLinkedExpense(expense) {
   return Boolean(
     expense?.planned_expense ||
       expense?.planned_expense_id ||
-      expense?.planned_expense_detail
+      expense?.planned_expense_detail ||
+      expense?.planned_expense_plan ||
+      expense?.planned_expense_plan_id
   );
 }
 
@@ -209,22 +227,23 @@ function formatBudgetDisplayDate(value) {
 }
 
 function getBudgetPaymentState(item) {
+  if (item?.payment_status) return item.payment_status;
   const planned = Number(item?.planned_amount || 0);
-  const spent = Number(item?.spent_amount || 0);
+  const spent = getPaidAmount(item);
 
-  if (spent <= 0) return "unpaid";
-  if (planned > 0 && spent >= planned) return "paid";
-  return "partial";
+  if (spent <= 0) return "pending";
+  if (planned > 0 && spent === planned) return "covered";
+  if (planned > 0 && spent > planned) return "exceeded";
+  return "partially_paid";
 }
 
 function getBudgetPaymentStateLabel(state) {
   switch (state) {
-    case "unpaid":
-      return "Sin pagar";
-    case "partial":
-      return "En pago";
-    case "paid":
-      return "Pagado";
+    case "pending": return "Pendiente";
+    case "partially_paid": return "Parcialmente pagado";
+    case "covered": return "Importe cubierto";
+    case "exceeded": return "Presupuesto superado";
+    case "completed": return "Completado";
     default:
       return "Todos";
   }
@@ -232,12 +251,14 @@ function getBudgetPaymentStateLabel(state) {
 
 function getBudgetPaymentStateRank(state) {
   switch (state) {
-    case "unpaid":
+    case "pending":
       return 0;
-    case "partial":
+    case "partially_paid":
       return 1;
-    case "paid":
+    case "covered":
       return 2;
+    case "exceeded": return 3;
+    case "completed": return 4;
     default:
       return 3;
   }
@@ -310,6 +331,8 @@ function VariableExpenseItem({ expense, categoryMap }) {
 }
 
 export default function Budget() {
+  const { profile } = useAuth();
+  const canManagePlans = profile?.role === "admin";
   const {
     currentYear,
     goNextMonth,
@@ -371,6 +394,13 @@ export default function Budget() {
   const [editingBudgetPayment, setEditingBudgetPayment] = useState(null);
   const [budgetPaymentFormLoading, setBudgetPaymentFormLoading] = useState(false);
   const [budgetPaymentFormError, setBudgetPaymentFormError] = useState(null);
+  const [monthStatusAction, setMonthStatusAction] = useState({
+    item: null,
+    type: null,
+    isCompleted: null,
+    loading: false,
+    error: null,
+  });
   const activeBudgetDetailRequestRef = useRef(0);
 
   const getIncomeCategoryName = useCallback((income) => {
@@ -452,6 +482,74 @@ export default function Budget() {
     setBudgetExpenses(unwrapCollectionResponse(response));
   }, [month, year]);
 
+  function requestMonthStatusUpdate(item, type, isCompleted) {
+    setMonthStatusAction({ item, type, isCompleted, loading: false, error: null });
+  }
+
+  async function confirmMonthStatusUpdate() {
+    const { item, type, isCompleted } = monthStatusAction;
+    if (!item?.id || typeof isCompleted !== "boolean") return;
+
+    try {
+      setMonthStatusAction((current) => ({ ...current, loading: true, error: null }));
+      let updated;
+      if (type === "recurring") {
+        updated = await recurringPaymentsService.updateMonthStatus(
+          item.id,
+          year,
+          month,
+          isCompleted
+        );
+      } else if (
+        item.source === "plan" ||
+        item.plan_id != null ||
+        item.planned_expense_plan != null
+      ) {
+        const planId = item.plan_id ?? item.planned_expense_plan;
+        updated = await updatePlannedExpensePlanMonthStatus(
+          planId,
+          year,
+          month,
+          isCompleted
+        );
+      } else {
+        updated = await updateLegacyPlannedExpenseMonthStatus(
+          item.id,
+          year,
+          month,
+          isCompleted
+        );
+      }
+      await Promise.all([fetchBudget({ silent: true }), fetchBudgetExpenses()]);
+      setBudgetDetailState((current) => {
+        if (
+          current.type !== type ||
+          String(current.item?.id) !== String(item.id)
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+          // The response `id` belongs to the monthly occurrence. Preserve the
+          // payment identity so close -> reopen keeps targeting the same plan.
+          item: mergeMonthStatus(current.item, updated),
+        };
+      });
+      setMonthStatusAction({ item: null, type: null, isCompleted: null, loading: false, error: null });
+    } catch (actionError) {
+      console.error(actionError);
+      if (isCompletedMonthConflict(actionError)) {
+        await Promise.all([fetchBudget({ silent: true }), fetchBudgetExpenses()]);
+      }
+      setMonthStatusAction((current) => ({
+        ...current,
+        loading: false,
+        error: getApiErrorMessage(actionError, "No se pudo actualizar el estado mensual"),
+      }));
+    }
+  }
+
   const fetchIncomePlanMonth = useCallback(async () => {
     setIncomePlanMonthLoading(true);
     setIncomePlanMonthError(null);
@@ -502,6 +600,7 @@ export default function Budget() {
     note,
     categoryId,
     plannedExpenseId,
+    plannedExpensePlanId,
     recurringPaymentId,
     payer,
   }) {
@@ -516,6 +615,7 @@ export default function Budget() {
       description: note || "",
       category: categoryId,
       planned_expense: plannedExpenseId,
+      planned_expense_plan: plannedExpensePlanId,
       recurring_payment: recurringPaymentId,
     };
     if (payer) {
@@ -580,7 +680,10 @@ export default function Budget() {
         date: getDefaultExpenseDateForCurrentBudget(),
         note: `Pago total de ${label}`,
         categoryId: item.category,
-        plannedExpenseId: type === "planned" ? item.id : null,
+        plannedExpenseId:
+          type === "planned" && item.source !== "plan" ? item.id : null,
+        plannedExpensePlanId:
+          type === "planned" && item.source === "plan" ? item.plan_id : null,
         recurringPaymentId: type === "recurring" ? item.id : null,
         payer,
       });
@@ -605,6 +708,9 @@ export default function Budget() {
   }
 
   function getBudgetItemLinkId(item) {
+    if (item?.source === "plan" && Number.isFinite(Number(item?.plan_id))) {
+      return Number(item.plan_id);
+    }
     if (typeof item?.id === "number") {
       return item.id;
     }
@@ -625,7 +731,11 @@ export default function Budget() {
 
     const matches = budgetExpenses.filter((expense) => {
       const expectedLinkField =
-        type === "planned" ? expense?.planned_expense : expense?.recurring_payment;
+        type === "planned"
+          ? item?.source === "plan"
+            ? expense?.planned_expense_plan
+            : expense?.planned_expense
+          : expense?.recurring_payment;
       const expenseLinkId =
         expectedLinkField != null ? Number(expectedLinkField) : null;
       const expenseAmount = Number(expense?.amount || 0);
@@ -687,7 +797,12 @@ export default function Budget() {
 
     if (type === "planned") {
       const plannedPayments = budgetExpenses.filter(
-        (expense) => Number(expense?.planned_expense) === Number(item.id)
+        (expense) =>
+          Number(
+            item?.source === "plan"
+              ? expense?.planned_expense_plan
+              : expense?.planned_expense
+          ) === Number(getBudgetItemLinkId(item))
       );
 
       setBudgetDetailState({
@@ -904,12 +1019,11 @@ export default function Budget() {
   const totalPlannedAmount = Number(total_planned || 0);
   const plannedPaidAmount = useMemo(() => {
     return [...planned, ...recurring].reduce(
-      (sum, item) => sum + Number(item?.spent_amount || 0),
+      (sum, item) => sum + getPaidAmount(item),
       0
     );
   }, [planned, recurring]);
-  const plannedRemainingAmount = Math.max(totalPlannedAmount - plannedPaidAmount, 0);
-  const plannedOverpaidAmount = Math.max(plannedPaidAmount - totalPlannedAmount, 0);
+  const plannedRemainingAmount = Number(data?.total_pending_amount ?? 0);
   const plannedPaidPercentage =
     totalPlannedAmount > 0
       ? Math.min((plannedPaidAmount / totalPlannedAmount) * 100, 100)
@@ -1423,9 +1537,7 @@ export default function Budget() {
                   />
                 </div>
                 <p className="mt-2 break-words text-xs text-slate-400">
-                  {plannedOverpaidAmount > 0
-                    ? `${plannedOverpaidAmount.toFixed(2)} € sobre lo planificado`
-                    : `${plannedRemainingAmount.toFixed(2)} € pendientes`}
+                  {`${plannedRemainingAmount.toFixed(2)} € pendientes`}
                 </p>
               </div>
               <div className="min-w-0 rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
@@ -1539,9 +1651,11 @@ export default function Budget() {
               onFilterChange={setBudgetFilter}
               filterOptions={[
                 { value: "all", label: "Todos" },
-                { value: "unpaid", label: getBudgetPaymentStateLabel("unpaid") },
-                { value: "partial", label: getBudgetPaymentStateLabel("partial") },
-                { value: "paid", label: getBudgetPaymentStateLabel("paid") },
+                { value: "pending", label: getBudgetPaymentStateLabel("pending") },
+                { value: "partially_paid", label: getBudgetPaymentStateLabel("partially_paid") },
+                { value: "covered", label: getBudgetPaymentStateLabel("covered") },
+                { value: "exceeded", label: getBudgetPaymentStateLabel("exceeded") },
+                { value: "completed", label: getBudgetPaymentStateLabel("completed") },
               ]}
               extraSelectValue={budgetCategoryFilter}
               onExtraSelectChange={setBudgetCategoryFilter}
@@ -1829,7 +1943,7 @@ export default function Budget() {
                 </p>
               </div>
               <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
-                <button
+                {canManagePlans ? <button
                   type="button"
                   onClick={() => {
                     setCreatePlanError(null);
@@ -1839,7 +1953,7 @@ export default function Budget() {
                   className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 sm:w-auto"
                 >
                   + Crear salario recurrente
-                </button>
+                </button> : null}
                 {normalizedIncomePlanMonth.isClosed && (
                   <span className="self-start rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-medium text-slate-300 sm:self-auto">
                     Mes cerrado
@@ -1871,6 +1985,7 @@ export default function Budget() {
                     <IncomePlanMonthItem
                       key={`income-plan-${item.plan_id}`}
                       item={item}
+                      canManage={canManagePlans}
                       disabled={!normalizedIncomePlanMonth.canResolve}
                       loadingAction={
                         activeIncomePlanAction?.id === item.plan_id
@@ -1909,7 +2024,7 @@ export default function Budget() {
         </div>
       </section>
 
-      <AdjustIncomePlanModal
+      {canManagePlans ? <AdjustIncomePlanModal
         key={adjustingPlan?.id || "closed-adjust-income-plan"}
         isOpen={Boolean(adjustingPlan)}
         item={adjustingPlan}
@@ -1922,9 +2037,9 @@ export default function Budget() {
           setAdjustModalError(null);
         }}
         onSubmit={handleAdjustIncomePlan}
-      />
+      /> : null}
 
-      <CreateIncomePlanModal
+      {canManagePlans ? <CreateIncomePlanModal
         key={editingIncomePlan?.plan_id ? `edit-income-plan-${editingIncomePlan.plan_id}` : "create-income-plan"}
         isOpen={createPlanOpen}
         onClose={() => {
@@ -1941,7 +2056,7 @@ export default function Budget() {
         title={editingIncomePlan ? "Editar ingreso planificado" : "Crear ingreso planificado"}
         subtitle={editingIncomePlan ? "Salario recurrente existente" : "Salario recurrente"}
         submitLabel={editingIncomePlan ? "Guardar cambios" : "Crear plan"}
-      />
+      /> : null}
 
       <ExpenseDetailSheet
         isOpen={budgetDetailState.isOpen}
@@ -1967,22 +2082,20 @@ export default function Budget() {
                       : "Partida planificada",
                 },
                 {
-                  label: "Usado",
-                  value: `${Number(
-                    budgetDetailState.item.spent_amount || 0
-                  ).toFixed(2)} €`,
+                  label: "Pagado",
+                  value: `${getPaidAmount(budgetDetailState.item).toFixed(2)} €`,
                 },
                 {
-                  label: "Restante",
-                  value: `${Number(
-                    budgetDetailState.item.remaining_amount || 0
-                  ).toFixed(2)} €`,
+                  label: "Por pagar",
+                  value: `${getPendingAmount(budgetDetailState.item).toFixed(2)} €`,
                 },
                 {
                   label: "Estado",
-                  value: getBudgetPaymentStateLabel(
-                    getBudgetPaymentState(budgetDetailState.item)
-                  ),
+                  value: PAYMENT_STATUS_LABELS[getPaymentStatus(budgetDetailState.item)] || "Pendiente",
+                },
+                {
+                  label: "Diferencia",
+                  value: formatDifference(budgetDetailState.item.difference_amount),
                 },
                 ...(budgetDetailState.item?.payer_detail
                   ? [
@@ -2000,13 +2113,25 @@ export default function Budget() {
         payments={budgetDetailState.payments}
         loading={budgetDetailState.loading}
         error={budgetDetailState.error}
+        monthStatus={budgetDetailState.item}
+        monthStatusLoading={
+          monthStatusAction.loading &&
+          Number(monthStatusAction.item?.id) === Number(budgetDetailState.item?.id)
+        }
+        onUpdateMonthStatus={(isCompleted) =>
+          requestMonthStatusUpdate(
+            budgetDetailState.item,
+            budgetDetailState.type,
+            isCompleted
+          )
+        }
         emptyMessage="Este elemento aún no tiene pagos vinculados."
         onClose={closeBudgetItemDetail}
-        onEditPayment={(payment) => {
+        onEditPayment={isMonthCompleted(budgetDetailState.item) ? undefined : (payment) => {
           setBudgetPaymentFormError(null);
           setEditingBudgetPayment(payment);
         }}
-        onDeletePayment={handleDeleteBudgetPayment}
+        onDeletePayment={isMonthCompleted(budgetDetailState.item) ? undefined : handleDeleteBudgetPayment}
         getPaymentCategoryLabel={(payment) => getBudgetExpenseCategoryName(payment)}
       />
 
@@ -2025,6 +2150,24 @@ export default function Budget() {
           setBudgetPaymentFormError(null);
         }}
         onSubmit={handleSaveBudgetPayment}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(monthStatusAction.item)}
+        title={monthStatusAction.isCompleted ? "¿Cerrar el pago de este mes?" : "¿Reabrir este pago?"}
+        description={
+          monthStatusAction.isCompleted
+            ? `Ya no aparecerá importe pendiente para ${monthLabel.toLowerCase()}, aunque el pago real sea menor que el planificado. Podrás reabrirlo después.`
+            : `Volverá a mostrarse como pendiente cualquier diferencia entre lo planificado y lo pagado en ${monthLabel.toLowerCase()}.`
+        }
+        confirmLabel={monthStatusAction.isCompleted ? "Cerrar pago del mes" : "Reabrir pago"}
+        loading={monthStatusAction.loading}
+        error={monthStatusAction.error}
+        onCancel={() => {
+          if (monthStatusAction.loading) return;
+          setMonthStatusAction({ item: null, type: null, isCompleted: null, loading: false, error: null });
+        }}
+        onConfirm={confirmMonthStatusUpdate}
       />
 
       <QuickPayTotalModal

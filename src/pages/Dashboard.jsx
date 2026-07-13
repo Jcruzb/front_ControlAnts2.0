@@ -14,6 +14,7 @@ import {
   getCategoryDisplayName,
 } from "../utils/categories";
 import { getPayerDisplayName } from "../utils/payers";
+import { getPaidAmount, getPendingAmount, getPaymentStatus } from "../utils/recurringMonthStatus";
 
 const CATEGORY_COLORS = [
   "#22c55e",
@@ -204,37 +205,6 @@ function formatMonthShort(year, month, includeYear = false) {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-function getRecurringPaymentId(expense) {
-  const rawId =
-    expense?.recurring_payment_detail?.id ??
-    expense?.recurring_payment?.id ??
-    expense?.recurring_payment_id ??
-    expense?.recurring_payment;
-
-  if (rawId === null || rawId === undefined || rawId === "") {
-    return null;
-  }
-
-  const numericId = Number(rawId);
-  return Number.isFinite(numericId) ? numericId : null;
-}
-
-function buildRecurringSpentFallback(expenses) {
-  const spentByRecurring = new Map();
-
-  for (const expense of expenses) {
-    const recurringId = getRecurringPaymentId(expense);
-    if (!recurringId) continue;
-
-    spentByRecurring.set(
-      recurringId,
-      (spentByRecurring.get(recurringId) || 0) + Number(expense?.amount || 0)
-    );
-  }
-
-  return spentByRecurring;
-}
-
 function buildBudgetRecurringMap(items) {
   const map = new Map();
 
@@ -259,18 +229,6 @@ function getRecurringMonthlyAmount(recurring, budgetItem) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-function getRecurringPaidThisMonth(recurring, budgetItem, spentFallback) {
-  const budgetSpent = Number(budgetItem?.spent_amount);
-
-  if (Number.isFinite(budgetSpent)) {
-    return budgetSpent;
-  }
-
-  const recurringId = Number(recurring?.id);
-
-  return Number.isFinite(recurringId) ? spentFallback.get(recurringId) || 0 : 0;
-}
-
 function getRecurringPayerName(recurring, budgetItem) {
   const payerDetail = recurring?.payer_detail ?? budgetItem?.payer_detail;
 
@@ -292,7 +250,6 @@ function getRecurringPayerName(recurring, budgetItem) {
 function calculateRecurringPendingProjection({
   recurring,
   budgetItem,
-  spentFallback,
   activeYear,
   activeMonth,
 }) {
@@ -322,11 +279,12 @@ function calculateRecurringPendingProjection({
     return null;
   }
 
-  const paidThisMonth = Math.max(
-    getRecurringPaidThisMonth(recurring, budgetItem, spentFallback),
-    0
-  );
-  const currentMonthRemaining = Math.max(monthlyAmount - paidThisMonth, 0);
+  if (!budgetItem || budgetItem.pending_amount == null) {
+    return null;
+  }
+
+  const paidThisMonth = getPaidAmount(budgetItem);
+  const currentMonthRemaining = getPendingAmount(budgetItem);
   const pendingMonths = [];
 
   for (
@@ -346,7 +304,7 @@ function calculateRecurringPendingProjection({
       ...target,
       label: formatMonthShort(target.year, target.month),
       amount,
-      status: isActiveMonth && paidThisMonth > 0 ? "partial" : "pending",
+      status: isActiveMonth ? getPaymentStatus(budgetItem) : "pending",
     });
   }
 
@@ -994,7 +952,6 @@ const Dashboard = () => {
   }, [expenses, month, year]);
 
   const deadlineCommitments = useMemo(() => {
-    const spentFallback = buildRecurringSpentFallback(expenses);
     const budgetRecurringMap = buildBudgetRecurringMap(budgetRecurring);
 
     return recurringPayments
@@ -1002,7 +959,6 @@ const Dashboard = () => {
         calculateRecurringPendingProjection({
           recurring,
           budgetItem: budgetRecurringMap.get(Number(recurring?.id)),
-          spentFallback,
           activeYear: year,
           activeMonth: month,
         })
@@ -1021,7 +977,7 @@ const Dashboard = () => {
 
         return b.pendingTotal - a.pendingTotal;
       });
-  }, [budgetRecurring, expenses, month, recurringPayments, year]);
+  }, [budgetRecurring, month, recurringPayments, year]);
 
   if (loading) {
     return (

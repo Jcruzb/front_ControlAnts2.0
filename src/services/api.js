@@ -134,6 +134,14 @@ export function getApiErrorMessage(error, fallback = "Ha ocurrido un error") {
 
   const responseData = error?.response?.data;
 
+  if (error?.response?.status === 429) {
+    return "Demasiados intentos. Espera un momento antes de volver a intentarlo.";
+  }
+
+  if (error?.response?.status === 403) {
+    return "No tienes permisos para realizar esta acción.";
+  }
+
   if (typeof responseData === "string" && responseData.trim()) {
     return responseData;
   }

@@ -37,6 +37,20 @@ const recurringPaymentsService = {
         return api.get(`${BASE_URL}${id}/payments/`);
     },
 
+    getMonthStatus(id, year, month) {
+        return api.get(`${BASE_URL}${id}/month-status/`, {
+            params: { year, month }
+        });
+    },
+
+    updateMonthStatus(id, year, month, isCompleted) {
+        return api.patch(`${BASE_URL}${id}/month-status/`, {
+            is_completed: isCompleted
+        }, {
+            params: { year, month }
+        });
+    },
+
     /**
      * Desactivar (soft delete) un gasto fijo
      * DELETE /api/recurring-payments/:id/

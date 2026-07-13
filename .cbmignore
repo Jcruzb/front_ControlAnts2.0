@@ -1,0 +1,32 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*
+*secret*
+
+# Dependencies, caches, and generated output
+.git/
+.codex/
+.codebase-memory/
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+.tmp/
+tmp/
+*.log
+*.tmp
+*.local
+*.sqlite
+*.sqlite3
+*.db
+
+# User data and exports
+uploads/
+exports/
+backups/
+generated/

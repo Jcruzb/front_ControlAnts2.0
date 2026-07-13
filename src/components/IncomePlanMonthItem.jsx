@@ -28,6 +28,7 @@ export default function IncomePlanMonthItem({
   onDelete,
   loadingAction = null,
   disabled = false,
+  canManage = false,
 }) {
   const [showActions, setShowActions] = useState(false);
   const actionsRef = useRef(null);
@@ -78,7 +79,7 @@ export default function IncomePlanMonthItem({
           </p>
         </div>
 
-        <div className="relative shrink-0 self-end sm:self-auto" ref={actionsRef}>
+        {canManage ? <div className="relative shrink-0 self-end sm:self-auto" ref={actionsRef}>
           <button
             type="button"
             onClick={() => setShowActions((value) => !value)}
@@ -112,7 +113,7 @@ export default function IncomePlanMonthItem({
               </button>
             </div>
           )}
-        </div>
+        </div> : null}
       </div>
 
       {status === "RESOLVED" && resolvedIncome ? (
@@ -149,14 +150,14 @@ export default function IncomePlanMonthItem({
               >
                 {loadingAction === "confirm" ? "Confirmando..." : "Confirmar"}
               </button>
-              <button
+              {canManage ? <button
                 type="button"
                 onClick={() => onAdjust(item)}
                 disabled={loadingAction === "adjust"}
                 className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08] disabled:opacity-50"
               >
                 Ajustar
-              </button>
+              </button> : null}
             </div>
           )}
         </div>

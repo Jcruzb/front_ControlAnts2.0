@@ -5,6 +5,7 @@ import BulkImportModal from "../components/BulkImportModal";
 import CardActionsMenu from "../components/CardActionsMenu";
 import ExpenseFormModal from "../components/ExpenseFormModal";
 import ExpenseDetailSheet from "../components/ExpenseDetailSheet";
+import ConfirmationModal from "../components/ConfirmationModal";
 import { useBudgetMonth } from "../hooks/useBudgetMonth";
 import api, {
   getApiErrorMessage,
@@ -23,6 +24,16 @@ import {
   readSpreadsheetRows,
 } from "../utils/spreadsheet";
 import { getPayerDisplayName } from "../utils/payers";
+import {
+  getExpensePaymentMonthStatus,
+  isCompletedMonthConflict,
+  isExpenseMonthCompleted,
+} from "../utils/recurringMonthStatus";
+import recurringPaymentsService from "../services/recurringPaymentsService";
+import {
+  updateLegacyPlannedExpenseMonthStatus,
+  updatePlannedExpensePlanMonthStatus,
+} from "../services/plannedExpenses";
 
 function getExpenseCategoryName(expense) {
   if (typeof expense?.category_detail?.name === "string") {
@@ -72,6 +83,7 @@ function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
   const title = expense.description || "Gasto";
   const subtitle = getExpenseCategoryName(expense);
   const payerName = getExpensePayerName(expense);
+  const isCompleted = isExpenseMonthCompleted(expense);
   const handleCardClick = (event) => {
     if (typeof onOpenDetails !== "function") return;
 
@@ -110,6 +122,11 @@ function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
             <p className="text-xs text-slate-500">Paga: {payerName}</p>
           ) : null}
           <p className="text-xs text-slate-500">{expense.date}</p>
+          {isCompleted ? (
+            <p className="mt-2 inline-flex rounded-full border border-emerald-400/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+              Pago planificado completado
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -120,7 +137,9 @@ function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
           </p>
         </div>
 
-        <CardActionsMenu
+        {isCompleted ? (
+          <span className="max-w-48 text-right text-xs text-slate-400">Reabre el pago mensual para editar movimientos.</span>
+        ) : <CardActionsMenu
           title={title}
           subtitle={subtitle}
           actions={[
@@ -134,7 +153,7 @@ function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
               onSelect: () => onDelete(expense),
             },
           ]}
-        />
+        />}
       </div>
     </div>
   );
@@ -169,6 +188,12 @@ const ExpensesList = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState(null);
   const [detailExpense, setDetailExpense] = useState(null);
+  const [monthStatusAction, setMonthStatusAction] = useState({
+    expense: null,
+    isCompleted: null,
+    loading: false,
+    error: null,
+  });
 
   const fetchExpenses = useCallback(async ({
     silent = false,
@@ -516,6 +541,9 @@ const ExpensesList = () => {
       setEditingExpense(null);
     } catch (saveError) {
       console.error(saveError);
+      if (isCompletedMonthConflict(saveError)) {
+        await fetchExpenses({ silent: true });
+      }
       setFormError(
         getApiErrorMessage(saveError, "No se pudo guardar el gasto")
       );
@@ -542,9 +570,68 @@ const ExpensesList = () => {
       setDetailExpense((current) => (current?.id === expense.id ? null : current));
     } catch (deleteError) {
       console.error(deleteError);
+      if (isCompletedMonthConflict(deleteError)) {
+        await fetchExpenses({ silent: true });
+      }
       setError(
         getApiErrorMessage(deleteError, "No se pudo eliminar el gasto")
       );
+    }
+  }
+
+  async function confirmMonthStatusUpdate() {
+    const { expense, isCompleted } = monthStatusAction;
+    if (!expense || typeof isCompleted !== "boolean") return;
+
+    try {
+      setMonthStatusAction((current) => ({ ...current, loading: true, error: null }));
+      let updated;
+      let statusField;
+      if (expense.recurring_payment) {
+        updated = await recurringPaymentsService.updateMonthStatus(
+          expense.recurring_payment,
+          year,
+          month,
+          isCompleted
+        );
+        statusField = "recurring_payment_month";
+      } else if (expense.planned_expense_plan) {
+        updated = await updatePlannedExpensePlanMonthStatus(
+          expense.planned_expense_plan,
+          year,
+          month,
+          isCompleted
+        );
+        statusField = "planned_payment_month";
+      } else if (expense.planned_expense) {
+        updated = await updateLegacyPlannedExpenseMonthStatus(
+          expense.planned_expense,
+          year,
+          month,
+          isCompleted
+        );
+        statusField = "planned_payment_month";
+      } else {
+        return;
+      }
+
+      setDetailExpense((current) =>
+        current?.id === expense.id ? { ...current, [statusField]: updated } : current
+      );
+      await fetchExpenses({ silent: true });
+      setMonthStatusAction({
+        expense: null,
+        isCompleted: null,
+        loading: false,
+        error: null,
+      });
+    } catch (statusError) {
+      console.error(statusError);
+      setMonthStatusAction((current) => ({
+        ...current,
+        loading: false,
+        error: getApiErrorMessage(statusError, "No se pudo actualizar el estado mensual"),
+      }));
     }
   }
 
@@ -763,18 +850,52 @@ const ExpensesList = () => {
                       },
                     ]
                   : []),
+                ...(isExpenseMonthCompleted(detailExpense)
+                  ? [{ label: "Estado mensual", value: "Completado" }]
+                  : []),
               ]
             : []
         }
         payments={detailExpense ? [detailExpense] : []}
+        monthStatus={getExpensePaymentMonthStatus(detailExpense)}
+        monthStatusLoading={monthStatusAction.loading}
+        onUpdateMonthStatus={
+          getExpensePaymentMonthStatus(detailExpense)
+            ? (isCompleted) =>
+                setMonthStatusAction({
+                  expense: detailExpense,
+                  isCompleted,
+                  loading: false,
+                  error: null,
+                })
+            : undefined
+        }
         emptyMessage="Este gasto no tiene más pagos asociados."
         onClose={() => setDetailExpense(null)}
-        onEditPayment={(payment) => {
+        onEditPayment={isExpenseMonthCompleted(detailExpense) ? undefined : (payment) => {
           setFormError(null);
           setEditingExpense(payment);
         }}
-        onDeletePayment={handleDeleteExpense}
+        onDeletePayment={isExpenseMonthCompleted(detailExpense) ? undefined : handleDeleteExpense}
         getPaymentCategoryLabel={(payment) => getExpenseCategoryName(payment)}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(monthStatusAction.expense)}
+        title={monthStatusAction.isCompleted ? "¿Cerrar el pago de este mes?" : "¿Reabrir este pago?"}
+        description={
+          monthStatusAction.isCompleted
+            ? `Ya no aparecerá importe pendiente para ${monthLabel.toLowerCase()}. Podrás reabrirlo después.`
+            : `Volverá a mostrarse como pendiente la diferencia correspondiente a ${monthLabel.toLowerCase()}.`
+        }
+        confirmLabel={monthStatusAction.isCompleted ? "Cerrar pago del mes" : "Reabrir pago"}
+        loading={monthStatusAction.loading}
+        error={monthStatusAction.error}
+        onCancel={() => {
+          if (monthStatusAction.loading) return;
+          setMonthStatusAction({ expense: null, isCompleted: null, loading: false, error: null });
+        }}
+        onConfirm={confirmMonthStatusUpdate}
       />
     </section>
   );

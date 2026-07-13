@@ -99,13 +99,13 @@ export default function Navbar() {
             ))}
           </nav>
 
-          <button
+          {role === "admin" ? <button
             type="button"
             onClick={() => setShowCategoryModal(true)}
             className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
           >
             + Categoría
-          </button>
+          </button> : null}
 
           <Link to={contextualAction.path} className={contextualAction.className}>
             {contextualAction.label}
@@ -199,7 +199,7 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <button
+            {role === "admin" ? <button
               type="button"
               onClick={() => {
                 setOpen(false);
@@ -208,7 +208,7 @@ export default function Navbar() {
               className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-slate-200"
             >
               + Categoría rápida
-            </button>
+            </button> : null}
 
             <button
               type="button"
@@ -222,7 +222,7 @@ export default function Navbar() {
         </nav>
       )}
 
-      {showCategoryModal ? (
+      {showCategoryModal && role === "admin" ? (
         <AddCategoryModal
           onClose={() => setShowCategoryModal(false)}
           onCreated={() => {

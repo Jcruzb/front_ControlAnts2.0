@@ -1,6 +1,14 @@
 import { useMemo, useState } from "react";
 import QuickAddExpense from "./QuickAddExpense";
 import { getPayerDisplayName } from "../utils/payers";
+import {
+  formatDifference,
+  getPaidAmount,
+  getPaymentStatus,
+  getPendingAmount,
+  isMonthCompleted,
+  PAYMENT_STATUS_LABELS,
+} from "../utils/recurringMonthStatus";
 
 function getBudgetCardTitle(item, type) {
   if (!item) return "";
@@ -82,6 +90,11 @@ export default function BudgetItem({
     return Math.max(0, Math.min(100, raw));
   }, [item?.percentage_used]);
   const payerName = item?.payer_detail ? getPayerDisplayName(item.payer_detail) : null;
+  const isRecurring = type === "recurring";
+  const completed = isMonthCompleted(item);
+  const paymentStatus = getPaymentStatus(item);
+  const paidAmount = getPaidAmount(item);
+  const pendingAmount = getPendingAmount(item);
 
   const handleQuickAddSubmit = async (payload) => {
     if (typeof onQuickAddSubmit === "function") {
@@ -102,7 +115,8 @@ export default function BudgetItem({
     canQuickRevert === true ? onQuickRevertTotal : onQuickPayTotal;
   const quickActionPendingLabel =
     canQuickRevert === true ? "Revirtiendo..." : "Pagando...";
-  const badgeLabel = type === "recurring" ? "Fijo" : "Planificado";
+  const badgeLabel =
+    PAYMENT_STATUS_LABELS[paymentStatus] || (isRecurring ? "Pago fijo" : "Planificado");
   const detailsId = `budget-item-detail-${type}-${item.id}`;
   const toggleLabel = isExpanded
     ? `Ocultar detalle de ${title}`
@@ -135,7 +149,7 @@ export default function BudgetItem({
                     {title}
                   </h3>
                   <p className="mt-1 break-words text-xs text-slate-400">
-                    {item.spent_amount} € usados de {item.planned_amount} €
+                    {paidAmount.toFixed(2)} € pagados de {Number(item.planned_amount || 0).toFixed(2)} €
                   </p>
                 </div>
 
@@ -166,8 +180,23 @@ export default function BudgetItem({
                 <p className="text-xs text-slate-500">Paga: {payerName}</p>
               ) : null}
 
+              {isRecurring ? (
+                <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="rounded-2xl border border-white/8 bg-black/20 p-3"><p className="text-[11px] text-slate-500">Planificado</p><p className="mt-1 font-semibold text-white">{Number(item.planned_amount || 0).toFixed(2)} €</p></div>
+                  <div className="rounded-2xl border border-white/8 bg-black/20 p-3"><p className="text-[11px] text-slate-500">Pagado</p><p className="mt-1 font-semibold text-white">{paidAmount.toFixed(2)} €</p></div>
+                  <div className="rounded-2xl border border-white/8 bg-black/20 p-3"><p className="text-[11px] text-slate-500">Por pagar</p><p className="mt-1 font-semibold text-white">{pendingAmount.toFixed(2)} €</p></div>
+                  <div className="rounded-2xl border border-white/8 bg-black/20 p-3"><p className="text-[11px] text-slate-500">Diferencia</p><p className="mt-1 break-words text-sm font-semibold text-white">{formatDifference(item.difference_amount)}</p></div>
+                </div>
+              ) : null}
+
+              {completed ? (
+                <p className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-sm text-amber-100">
+                  Este pago está completado para este mes. Reábrelo para modificar sus movimientos.
+                </p>
+              ) : null}
+
               <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
-                {typeof quickActionHandler === "function" && (
+                {typeof quickActionHandler === "function" && !completed && (
                   <button
                     type="button"
                     onClick={(event) => {
@@ -194,7 +223,8 @@ export default function BudgetItem({
                     event.stopPropagation();
                     setIsQuickAddOpen(true);
                   }}
-                  className="w-full shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98] sm:w-auto"
+                  disabled={completed}
+                  className="w-full shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   aria-label={`Añadir gasto a ${title}`}
                 >
                   + gasto
@@ -229,8 +259,8 @@ export default function BudgetItem({
                       {progress.toFixed(2)}% consumido
                     </span>
                     <span className={`break-words text-right ${statusStyles.hint}`}>
-                      {item.remaining_amount >= 0
-                        ? `${item.remaining_amount} € disponibles`
+                    {getPendingAmount(item) >= 0
+                        ? `${getPendingAmount(item).toFixed(2)} € ${isRecurring ? "por pagar" : "disponibles"}`
                         : statusStyles.hintText}
                     </span>
                   </div>
@@ -241,7 +271,7 @@ export default function BudgetItem({
                     Restante
                   </p>
                   <p className="mt-1 text-lg font-semibold text-white">
-                    {item.remaining_amount} €
+                    {getPendingAmount(item).toFixed(2)} €
                   </p>
                 </div>
               </div>
@@ -251,7 +281,7 @@ export default function BudgetItem({
       </div>
 
       <QuickAddExpense
-        isOpen={isQuickAddOpen}
+        isOpen={isQuickAddOpen && !completed}
         onClose={() => setIsQuickAddOpen(false)}
         budgetYear={budgetYear}
         budgetMonth={budgetMonth}

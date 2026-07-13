@@ -67,10 +67,29 @@ Carga solo la skill que aplique a la tarea:
 - `GET/POST/PATCH/DELETE /api/incomes/`
 - `GET/POST/PATCH/DELETE /api/categories/`
 - `GET/POST/PUT/PATCH/DELETE /api/recurring-payments/`
+- `GET/PATCH /api/recurring-payments/:id/month-status/?year=&month=`
+- `GET/PATCH /api/planned-expenses/:id/month-status/?year=&month=`
+- `GET/PATCH /api/planned-expense-plans/:id/month-status/?year=&month=`
 - `GET /api/family/members/`
 - `GET /api/income-plans/month/?year=&month=`
 - `POST /api/income-plans/:id/confirm/?year=&month=`
 - `POST /api/income-plans/:id/adjust/?year=&month=`
+
+## Roles and plan linkage
+
+- `profile.role === "admin"` controls configuration mutations for categories,
+  fixed payments and planned definitions. Members keep read access and may
+  record real movements, confirm income and update recurring month status.
+- Expenses linked to the new planning system send `planned_expense_plan`.
+  Legacy rows continue using `planned_expense`; never send both.
+- New planned budget rows expose `source: "plan"` and numeric `plan_id`.
+- Updating a new plan amount must send `effective_month` with the family month id.
+- Monthly completion is an operational action inside the shared payment detail.
+  It applies to recurring, legacy planned and versioned planned items, including
+  items with no registered movements.
+- Closing a monthly payment sets its pending amount to zero while preserving the
+  planned amount, paid amount and signed difference. Reopening restores the
+  backend-calculated pending amount.
 
 ## Deuda conocida
 

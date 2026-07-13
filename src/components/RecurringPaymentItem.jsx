@@ -29,6 +29,7 @@ export default function RecurringPaymentItem({
   onReactivate = () => {},
   categoryMap = {},
   onOpenDetails,
+  canManage = false,
 }) {
   const {
     name,
@@ -110,7 +111,7 @@ export default function RecurringPaymentItem({
               </span>
             )}
 
-            <CardActionsMenu
+            {canManage ? <CardActionsMenu
               title={name}
               subtitle={categoryInfo?.name || "Sin categoría"}
               actions={[
@@ -124,7 +125,7 @@ export default function RecurringPaymentItem({
                   onSelect: handleSecondaryAction,
                 },
               ]}
-            />
+            /> : null}
           </div>
         </div>
       </div>
