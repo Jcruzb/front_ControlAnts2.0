@@ -75,6 +75,21 @@ Carga solo la skill que aplique a la tarea:
 - `POST /api/income-plans/:id/confirm/?year=&month=`
 - `POST /api/income-plans/:id/adjust/?year=&month=`
 
+## Resumen mensual de Budget
+
+- La cabecera principal muestra cuatro métricas: `Presupuesto`, `Ingresos`,
+  `Balance` y `Gasto real`.
+- `Gasto real` consume `actual_spent` de `/api/budget/`, con `total_spent` como
+  fallback compatible; incluye movimientos planificados, fijos y no planificados.
+- `unplanned_total` es un desglose de `actual_spent` y nunca se suma de nuevo.
+- `Ingresos` muestra únicamente movimientos registrados. Los planes de ingreso
+  pendientes aparecen como contexto secundario, no dentro del balance real.
+- `Balance` es `ingresos registrados - gasto real`.
+- `Por pagar` y `no planificado` son desgloses secundarios, no tarjetas
+  principales.
+- El rojo se reserva para exceso de presupuesto o balance negativo. Los estados
+  `covered` y `completed` son positivos y se muestran en verde.
+
 ## Roles and plan linkage
 
 - `profile.role === "admin"` controls configuration mutations for categories,

@@ -63,21 +63,18 @@ export default function BudgetItem({
     switch (item?.status) {
       case "over":
         return {
-          badge: "bg-red-500/12 text-red-200 border-red-400/20",
           bar: "bg-red-400",
           hint: "text-red-300",
           hintText: "Te has pasado",
         };
       case "warning":
         return {
-          badge: "bg-amber-500/12 text-amber-200 border-amber-400/20",
           bar: "bg-amber-400",
           hint: "text-amber-300",
           hintText: "Ojo, te queda poco margen",
         };
       default:
         return {
-          badge: "bg-emerald-500/12 text-emerald-200 border-emerald-400/20",
           bar: "bg-emerald-400",
           hint: "text-emerald-300",
           hintText: "Vas bien",
@@ -95,6 +92,19 @@ export default function BudgetItem({
   const paymentStatus = getPaymentStatus(item);
   const paidAmount = getPaidAmount(item);
   const pendingAmount = getPendingAmount(item);
+  const paymentStatusStyles = useMemo(() => {
+    switch (paymentStatus) {
+      case "covered":
+      case "completed":
+        return "border-emerald-400/30 bg-emerald-500/15 text-emerald-100";
+      case "exceeded":
+        return "border-red-400/30 bg-red-500/15 text-red-100";
+      case "partially_paid":
+        return "border-amber-400/30 bg-amber-500/15 text-amber-100";
+      default:
+        return "border-white/15 bg-white/[0.07] text-slate-200";
+    }
+  }, [paymentStatus]);
 
   const handleQuickAddSubmit = async (payload) => {
     if (typeof onQuickAddSubmit === "function") {
@@ -155,7 +165,7 @@ export default function BudgetItem({
 
                 <div className="flex shrink-0 items-center gap-2">
                   <span
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusStyles.badge}`}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${paymentStatusStyles}`}
                   >
                     {badgeLabel}
                   </span>
@@ -190,7 +200,7 @@ export default function BudgetItem({
               ) : null}
 
               {completed ? (
-                <p className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-sm text-amber-100">
+                <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-100">
                   Este pago está completado para este mes. Reábrelo para modificar sus movimientos.
                 </p>
               ) : null}

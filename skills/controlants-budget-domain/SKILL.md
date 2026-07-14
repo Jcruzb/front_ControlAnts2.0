@@ -25,12 +25,17 @@ Core endpoints:
 
 Keep these concepts separate:
 
-- **Ingresos**: registered incomes plus pending planned incomes according to current frontend logic.
+- **Ingresos del resumen**: registered incomes. Pending planned incomes are
+  secondary projected context and are not part of the real balance.
 - **Gastos planificados**: `total_planned`, including planned categories and recurring/fixed payments.
-- **Pagado**: all real expenses registered in the selected month.
-- **Pendiente planificado / Por pagar**: planned amount not yet paid, usually `max(totalPlanned - plannedPaid, 0)`.
+- **Gasto real**: `actual_spent` (or compatible `total_spent`), containing all
+  real expenses registered in the selected month.
+- **Pendiente planificado / Por pagar**: canonical `total_pending_amount` from
+  the budget contract; do not reconstruct it from planned and paid totals.
 - **Gastos no planificados**: expenses not linked to planned or recurring items.
-- **Balance proyectado**: `income - totalPlanned - unplannedTotal`.
+- **Balance real**: registered income minus actual spending.
+- **Balance proyectado**: when shown outside the primary summary, projected
+  income minus planned budget and additional unplanned spending.
 - **Excedente/faltante planificado**: `income - totalPlanned`, excluding unplanned expenses.
 
 Do not subtract planned paid twice: paid planned expenses are already part of `total_planned`.

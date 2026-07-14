@@ -17,7 +17,7 @@ test("expone los cinco estados mensuales con texto visible", () => {
   assert.deepEqual(PAYMENT_STATUS_LABELS, {
     pending: "Pendiente",
     partially_paid: "Parcialmente pagado",
-    covered: "Importe cubierto",
+    covered: "Pagado",
     exceeded: "Presupuesto superado",
     completed: "Completado",
   });

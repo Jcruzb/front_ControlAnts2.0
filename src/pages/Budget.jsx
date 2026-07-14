@@ -41,6 +41,7 @@ import {
 } from "../utils/categories";
 import { getTodayLocalDate } from "../utils/date";
 import { getPayerDisplayName } from "../utils/payers";
+import { buildMonthlyBudgetSummary } from "../utils/budgetSummary";
 import {
   formatDifference,
   getPaidAmount,
@@ -241,7 +242,7 @@ function getBudgetPaymentStateLabel(state) {
   switch (state) {
     case "pending": return "Pendiente";
     case "partially_paid": return "Parcialmente pagado";
-    case "covered": return "Importe cubierto";
+    case "covered": return "Pagado";
     case "exceeded": return "Presupuesto superado";
     case "completed": return "Completado";
     default:
@@ -268,6 +269,8 @@ const EMPTY_BUDGET = {
   status: "ok",
   remaining_amount: 0,
   total_planned: 0,
+  total_spent: 0,
+  actual_spent: 0,
   planned: [],
   recurring: [],
   unplanned_total: 0,
@@ -949,7 +952,7 @@ export default function Budget() {
     return incomes.reduce((sum, inc) => sum + Number(inc.amount || 0), 0);
   }, [incomes]);
 
-  const totalSpentFromBudget = Number(data?.total_spent || 0);
+  const totalSpentFromBudget = Number(data?.actual_spent ?? data?.total_spent ?? 0);
   const dedupedBudgetExpenses = useMemo(() => {
     const seen = new Set();
 
@@ -1004,50 +1007,17 @@ export default function Budget() {
     }, 0);
   }, [normalizedIncomePlanMonth.items]);
 
-  const totalIncomeWithRecurring = totalIncome + plannedRecurringIncome;
-  const totalSpentReal =
-    budgetExpenses.length > 0 ? totalSpentFromExpenses : totalSpentFromBudget;
+  const totalSpentReal = data ? totalSpentFromBudget : totalSpentFromExpenses;
   const selectedMonthId = data?.month_id ?? data?.income_plan_month?.month_id ?? null;
   const budgetData = data ?? EMPTY_BUDGET;
   const {
-    status,
     total_planned,
     planned,
     recurring,
     unplanned_total,
   } = budgetData;
   const totalPlannedAmount = Number(total_planned || 0);
-  const plannedPaidAmount = useMemo(() => {
-    return [...planned, ...recurring].reduce(
-      (sum, item) => sum + getPaidAmount(item),
-      0
-    );
-  }, [planned, recurring]);
   const plannedRemainingAmount = Number(data?.total_pending_amount ?? 0);
-  const plannedPaidPercentage =
-    totalPlannedAmount > 0
-      ? Math.min((plannedPaidAmount / totalPlannedAmount) * 100, 100)
-      : 0;
-  const plannedBalance = totalIncomeWithRecurring - totalPlannedAmount;
-  const plannedBalanceState =
-    plannedBalance > 0
-      ? "Excedente planificado"
-      : plannedBalance < 0
-      ? "Faltante planificado"
-      : "Equilibrio planificado";
-  const plannedBalanceLoading =
-    incomesLoading || (incomePlanMonthLoading && !data?.income_plan_month);
-  const plannedBalanceTone =
-    plannedBalanceLoading
-      ? "border-white/10 bg-white/[0.04] text-slate-300"
-      : plannedBalance > 0
-      ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
-      : plannedBalance < 0
-      ? "border-red-400/20 bg-red-500/10 text-red-200"
-      : "border-blue-400/20 bg-blue-500/10 text-blue-200";
-  const plannedBalanceText = plannedBalanceLoading
-    ? "Calculando..."
-    : `${plannedBalanceState}: ${plannedBalance.toFixed(2)} €`;
   const expenseCategoryMap = useMemo(
     () => buildCategoryMap(expenseCategories),
     [expenseCategories]
@@ -1075,8 +1045,14 @@ export default function Budget() {
     budgetExpenses.length > 0
       ? variableExpensesTotal
       : Number(unplanned_total || 0);
-  const projectedBalance =
-    totalIncomeWithRecurring - totalPlannedAmount - unplannedExpensesTotal;
+  const monthlySummary = buildMonthlyBudgetSummary({
+    registeredIncome: totalIncome,
+    pendingPlannedIncome: plannedRecurringIncome,
+    plannedBudget: totalPlannedAmount,
+    actualSpent: totalSpentReal,
+    pendingPlannedExpenses: plannedRemainingAmount,
+    unplannedSpent: unplannedExpensesTotal,
+  });
 
   const budgetCategoryOptions = useMemo(() => {
     const categoryMap = new Map();
@@ -1476,20 +1452,9 @@ export default function Budget() {
     }
   }
 
-  const displayStatus = projectedBalance < 0 ? "over" : status;
-  const statusText =
-    displayStatus === "over"
-      ? "Te has pasado este mes"
-      : displayStatus === "warning"
-      ? "Ojo, estás cerca del límite"
-      : "Vas bien este mes";
-
-  const statusColor =
-    displayStatus === "over"
-      ? "text-red-300"
-      : displayStatus === "warning"
-      ? "text-amber-300"
-      : "text-emerald-300";
+  const statusColor = monthlySummary.isOverBudget
+    ? "text-red-300"
+    : "text-emerald-300";
 
   return (
     <div className="min-w-0 max-w-full space-y-8 overflow-x-clip">
@@ -1504,76 +1469,65 @@ export default function Budget() {
                 {monthLabel}
               </h1>
               <p className={`mt-3 text-sm font-medium ${statusColor}`}>
-                {statusText}
+                {monthlySummary.statusText}
               </p>
-              <div
-                className={`mt-3 inline-flex max-w-full rounded-full border px-3 py-1 text-xs font-semibold ${plannedBalanceTone}`}
-                title="Excedente planificado: diferencia entre ingresos y gastos planificados, sin considerar gastos no planificados."
-              >
-                <span className="min-w-0 break-words">{plannedBalanceText}</span>
-              </div>
             </div>
 
-            <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-              <div className="min-w-0 rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Ingresos del mes, incluyendo ingresos registrados y/o planificados según la configuración actual.">
-                  Ingresos
+            <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="min-w-0 rounded-[28px] border border-blue-300/20 bg-blue-500/[0.08] px-4 py-4">
+                <MetricLabel help="Importe total previsto para cubrir gastos planificados y pagos fijos durante el mes.">
+                  Presupuesto
                 </MetricLabel>
-                <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-white">
-                  {totalIncomeWithRecurring.toFixed(0)} €
-                </p>
-              </div>
-              <div className="min-w-0 rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Total de gastos previstos para el mes. La barra indica qué porcentaje de esos gastos ya fue pagado.">
-                  Gastos planificados
-                </MetricLabel>
-                <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-white">
-                  {totalPlannedAmount.toFixed(0)} €
+                <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-blue-50">
+                  {monthlySummary.plannedBudget.toFixed(2)} €
                 </p>
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
                   <div
-                    className="h-full rounded-full bg-emerald-400"
-                    style={{ width: `${plannedPaidPercentage}%` }}
+                    className={`h-full rounded-full ${
+                      monthlySummary.isOverBudget ? "bg-red-400" : "bg-blue-300"
+                    }`}
+                    style={{ width: `${monthlySummary.budgetUsagePercentage}%` }}
                   />
                 </div>
-                <p className="mt-2 break-words text-xs text-slate-400">
-                  {`${plannedRemainingAmount.toFixed(2)} € pendientes`}
+                <p className={`mt-2 break-words text-xs ${monthlySummary.isOverBudget ? "text-red-200" : "text-blue-100"}`}>
+                  {monthlySummary.isOverBudget
+                    ? `${Math.abs(monthlySummary.budgetDifference).toFixed(2)} € de exceso`
+                    : `${monthlySummary.budgetDifference.toFixed(2)} € disponibles`}
                 </p>
               </div>
-              <div className="min-w-0 rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Total ya registrado como gasto real del mes, incluyendo gastos planificados, fijos y no planificados.">
-                  Pagado
+              <div className="min-w-0 rounded-[28px] border border-emerald-300/20 bg-emerald-500/[0.08] px-4 py-4">
+                <MetricLabel help="Suma de los ingresos que ya están registrados en el mes. Los ingresos planificados pendientes se muestran aparte.">
+                  Ingresos
                 </MetricLabel>
-                <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-white">
-                  {totalSpentReal.toFixed(2)} €
+                <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-emerald-100">
+                  {monthlySummary.registeredIncome.toFixed(2)} €
+                </p>
+                <p className="mt-3 break-words text-xs text-emerald-100/80">
+                  {monthlySummary.pendingPlannedIncome > 0
+                    ? `${monthlySummary.pendingPlannedIncome.toFixed(2)} € previstos por confirmar`
+                    : "Ingresos del mes registrados"}
                 </p>
               </div>
-              <div className="min-w-0 rounded-[28px] border border-blue-400/14 bg-blue-500/[0.06] px-4 py-4">
-                <MetricLabel help="Gastos registrados en el mes que no estaban contemplados como gastos planificados o fijos.">
-                  No planificados
-                </MetricLabel>
-                <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-blue-100">
-                  {unplannedExpensesTotal.toFixed(2)} €
-                </p>
-              </div>
-              <div className="min-w-0 rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Importe planificado que todavía queda pendiente por pagar este mes.">
-                  Por pagar
-                </MetricLabel>
-                <p className={`mt-2 break-words text-2xl font-semibold tracking-tight ${statusColor}`}>
-                  {plannedRemainingAmount.toFixed(2)} €
-                </p>
-              </div>
-              <div className="min-w-0 rounded-[28px] border border-white/8 bg-black/20 px-4 py-4">
-                <MetricLabel help="Balance proyectado del mes: ingresos menos gastos planificados y menos gastos no planificados. Indica cuánto quedaría si se cumple todo lo planificado.">
+              <div className={`min-w-0 rounded-[28px] border px-4 py-4 ${monthlySummary.balance >= 0 ? "border-emerald-300/20 bg-emerald-500/[0.08]" : "border-red-300/25 bg-red-500/[0.1]"}`}>
+                <MetricLabel help="Balance real del mes: ingresos registrados menos todos los gastos reales registrados.">
                   Balance
                 </MetricLabel>
-                <p
-                  className={`mt-2 break-words text-2xl font-semibold tracking-tight ${
-                    projectedBalance >= 0 ? "text-emerald-300" : "text-red-300"
-                  }`}
-                >
-                  {projectedBalance.toFixed(2)} €
+                <p className={`mt-2 break-words text-2xl font-semibold tracking-tight ${monthlySummary.balance >= 0 ? "text-emerald-100" : "text-red-100"}`}>
+                  {monthlySummary.balance.toFixed(2)} €
+                </p>
+                <p className="mt-3 break-words text-xs text-slate-300">
+                  Ingresos registrados − gasto real
+                </p>
+              </div>
+              <div className="min-w-0 rounded-[28px] border border-white/15 bg-black/30 px-4 py-4">
+                <MetricLabel help="Todos los movimientos de gasto registrados en el mes, tanto planificados como fijos y no planificados.">
+                  Gasto real
+                </MetricLabel>
+                <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-white">
+                  {monthlySummary.actualSpent.toFixed(2)} €
+                </p>
+                <p className="mt-3 break-words text-xs text-slate-300">
+                  {monthlySummary.unplannedSpent.toFixed(2)} € no planificados · {monthlySummary.pendingPlannedExpenses.toFixed(2)} € por pagar
                 </p>
               </div>
             </div>
@@ -1698,7 +1652,7 @@ export default function Budget() {
                   Entradas del mes
                 </h2>
                 <p className="mt-1 break-words text-sm text-slate-400">
-                  Ingresos registrados y balance proyectado del periodo.
+                  Ingresos registrados y balance real del periodo.
                 </p>
               </div>
               <QuickAddIncome
@@ -1718,19 +1672,19 @@ export default function Budget() {
                   Total ingresos
                 </p>
                 <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-white">
-                  {totalIncomeWithRecurring.toFixed(2)} €
+                  {totalIncome.toFixed(2)} €
                 </p>
               </div>
               <div
                 className={`min-w-0 rounded-[28px] border border-white/8 bg-black/20 p-4 ${
-                  projectedBalance < 0 ? "text-red-300" : "text-emerald-300"
+                  monthlySummary.balance < 0 ? "text-red-300" : "text-emerald-300"
                 }`}
               >
                 <p className="break-words text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                  Balance proyectado
+                  Balance real
                 </p>
                 <p className="mt-2 break-words text-2xl font-semibold tracking-tight">
-                  {projectedBalance.toFixed(2)} €
+                  {monthlySummary.balance.toFixed(2)} €
                 </p>
               </div>
               <div className="min-w-0 rounded-[28px] border border-white/8 bg-black/20 p-4">
