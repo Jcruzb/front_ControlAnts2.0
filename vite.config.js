@@ -22,5 +22,10 @@ export default defineConfig(({ mode }) => {
           }
         : undefined,
     },
+    test: {
+      environment: "jsdom",
+      include: ["src/copilot/tests/**/*.test.jsx"],
+      setupFiles: ["./src/copilot/tests/setup.js"],
+    },
   };
 });

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import AppLayout from './AppLayout'
 import Dashboard from '../pages/Dashboard'
@@ -11,6 +12,8 @@ import Account from '../pages/Account'
 import Login from '../pages/Login'
 import Register from '../pages/Register'
 import { useAuth } from '../hooks/useAuth'
+
+const CopilotPage = lazy(() => import('../copilot/pages/CopilotPage'))
 
 function AuthLoadingScreen() {
   return (
@@ -65,6 +68,7 @@ function Router() {
         <Route path="/recurring" element={<PrivateRoute><RecurringPayments /></PrivateRoute>} />
         <Route path="/categories" element={<PrivateRoute><Categories /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><Account /></PrivateRoute>} />
+        <Route path="/copilot" element={<PrivateRoute><Suspense fallback={<div className="py-20 text-center text-sm text-slate-500">Preparando Copiloto…</div>}><CopilotPage /></Suspense></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

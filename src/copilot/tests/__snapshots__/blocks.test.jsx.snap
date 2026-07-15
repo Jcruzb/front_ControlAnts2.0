@@ -1,0 +1,613 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`bloques visuales del Copiloto > renderiza action_group y conserva un snapshot 1`] = `
+<section
+  aria-label="Siguientes pasos"
+  class="min-w-0 max-w-full rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] sm:p-6 "
+>
+  <div
+    aria-label="Acciones disponibles"
+    class="mt-5 flex flex-wrap gap-2"
+  >
+    <button
+      class="min-h-11 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0d12] disabled:cursor-wait disabled:opacity-60 border-blue-400/20 bg-blue-500 text-white hover:bg-blue-400"
+      type="button"
+    >
+      Ver detalle
+    </button>
+    <button
+      class="min-h-11 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0d12] disabled:cursor-wait disabled:opacity-60 border-white/10 bg-white/[0.07] text-slate-100 hover:bg-white/[0.11]"
+      type="button"
+    >
+      Abrir presupuesto
+    </button>
+  </div>
+</section>
+`;
+
+exports[`bloques visuales del Copiloto > renderiza alert y conserva un snapshot 1`] = `
+<section
+  class="min-w-0 rounded-[22px] border p-4 sm:p-5 border-amber-400/20 bg-amber-500/10 text-amber-100"
+  role="status"
+>
+  <div
+    class="flex min-w-0 gap-3"
+  >
+    <span
+      aria-hidden="true"
+      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-current/20 bg-black/10 text-sm font-bold"
+    >
+      !
+    </span>
+    <div
+      class="min-w-0 flex-1"
+    >
+      <h2
+        class="break-words font-semibold text-current"
+      >
+        Pago pendiente
+      </h2>
+      <p
+        class="mt-1 break-words text-sm leading-6 opacity-80"
+      >
+        Queda un pago registrado como pendiente.
+      </p>
+      <dl
+        class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2"
+      >
+        <div
+          class="min-w-0 rounded-xl bg-black/10 px-3 py-2 text-xs"
+        >
+          <dt
+            class="break-words opacity-60"
+          >
+            amount
+          </dt>
+          <dd
+            class="mt-1 break-words font-semibold"
+          >
+            80.00
+          </dd>
+        </div>
+      </dl>
+      <div
+        aria-label="Acciones disponibles"
+        class="mt-5 flex flex-wrap gap-2"
+      >
+        <button
+          class="min-h-11 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0d12] disabled:cursor-wait disabled:opacity-60 border-blue-400/20 bg-blue-500 text-white hover:bg-blue-400"
+          type="button"
+        >
+          Ver detalle
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+`;
+
+exports[`bloques visuales del Copiloto > renderiza bar_chart y conserva un snapshot 1`] = `
+<section
+  aria-labelledby="bars-title"
+  class="min-w-0 max-w-full rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] sm:p-6"
+>
+  <div
+    id="bars-title"
+  >
+    <div
+      class="min-w-0"
+    >
+      <h2
+        class="mt-1 break-words text-lg font-semibold tracking-tight text-white sm:text-xl"
+      >
+        Por categoría
+      </h2>
+      <p
+        class="mt-2 max-w-3xl break-words text-sm leading-6 text-slate-400"
+      >
+        Valores registrados.
+      </p>
+    </div>
+  </div>
+  <div
+    aria-label="Leyenda"
+    class="mt-4 flex flex-wrap gap-x-4 gap-y-2"
+  >
+    <span
+      class="inline-flex items-center gap-2 text-xs text-slate-300"
+    >
+      <span
+        aria-hidden="true"
+        class="h-2.5 w-2.5 rounded-full"
+        style="background-color: rgb(96, 165, 250);"
+      />
+      Gastado
+    </span>
+  </div>
+  <div
+    aria-hidden="true"
+    class="mt-5 h-64 min-w-0 sm:h-72"
+  >
+    <div
+      data-testid="responsive-chart"
+    >
+      <div>
+        <span />
+      </div>
+    </div>
+  </div>
+  <div
+    class="sr-only"
+  >
+    <table>
+      <caption>
+        Por categoría
+        : valores recibidos
+      </caption>
+      <thead>
+        <tr>
+          <th>
+            Categoría
+          </th>
+          <th>
+            Gastado
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>
+            Hogar
+          </th>
+          <td>
+            20.00
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div
+    aria-label="Valores del gráfico"
+    class="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+  >
+    <div
+      class="min-w-0 rounded-xl border border-white/8 bg-black/20 px-3 py-2 text-xs"
+    >
+      <p
+        class="truncate font-semibold text-slate-200"
+      >
+        Hogar
+      </p>
+      <p
+        class="mt-1 break-words text-slate-500"
+      >
+        Gastado: 20.00
+      </p>
+    </div>
+  </div>
+</section>
+`;
+
+exports[`bloques visuales del Copiloto > renderiza line_chart y conserva un snapshot 1`] = `
+<section
+  aria-labelledby="lines-title"
+  class="min-w-0 max-w-full rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] sm:p-6"
+>
+  <div
+    id="lines-title"
+  >
+    <div
+      class="min-w-0"
+    >
+      <h2
+        class="mt-1 break-words text-lg font-semibold tracking-tight text-white sm:text-xl"
+      >
+        Evolución
+      </h2>
+      <p
+        class="mt-2 max-w-3xl break-words text-sm leading-6 text-slate-400"
+      >
+        Valores registrados.
+      </p>
+    </div>
+  </div>
+  <div
+    aria-label="Leyenda"
+    class="mt-4 flex flex-wrap gap-x-4 gap-y-2"
+  >
+    <span
+      class="inline-flex items-center gap-2 text-xs text-slate-300"
+    >
+      <span
+        aria-hidden="true"
+        class="h-2.5 w-2.5 rounded-full"
+        style="background-color: rgb(96, 165, 250);"
+      />
+      Gastado
+    </span>
+  </div>
+  <div
+    aria-hidden="true"
+    class="mt-5 h-64 min-w-0 sm:h-72"
+  >
+    <div
+      data-testid="responsive-chart"
+    >
+      <div>
+        <span />
+      </div>
+    </div>
+  </div>
+  <div
+    class="sr-only"
+  >
+    <table>
+      <caption>
+        Evolución
+        : valores recibidos
+      </caption>
+      <thead>
+        <tr>
+          <th>
+            Mes
+          </th>
+          <th>
+            Gastado
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>
+            Junio de 2026
+          </th>
+          <td>
+            10.00
+          </td>
+        </tr>
+        <tr>
+          <th>
+            Julio de 2026
+          </th>
+          <td>
+            20.00
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div
+    aria-label="Valores del gráfico"
+    class="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+  >
+    <div
+      class="min-w-0 rounded-xl border border-white/8 bg-black/20 px-3 py-2 text-xs"
+    >
+      <p
+        class="truncate font-semibold text-slate-200"
+      >
+        Junio de 2026
+      </p>
+      <p
+        class="mt-1 break-words text-slate-500"
+      >
+        Gastado: 10.00
+      </p>
+    </div>
+    <div
+      class="min-w-0 rounded-xl border border-white/8 bg-black/20 px-3 py-2 text-xs"
+    >
+      <p
+        class="truncate font-semibold text-slate-200"
+      >
+        Julio de 2026
+      </p>
+      <p
+        class="mt-1 break-words text-slate-500"
+      >
+        Gastado: 20.00
+      </p>
+    </div>
+  </div>
+</section>
+`;
+
+exports[`bloques visuales del Copiloto > renderiza metric_grid y conserva un snapshot 1`] = `
+<section
+  aria-label="Métricas principales"
+  class="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3"
+>
+  <article
+    class="min-w-0 rounded-[22px] border p-4 sm:p-5 border-emerald-400/16 bg-emerald-500/[0.07]"
+  >
+    <p
+      class="break-words text-sm font-medium text-slate-400"
+    >
+      Ingresos
+    </p>
+    <p
+      class="mt-3 break-words text-2xl font-semibold tracking-tight text-white sm:text-3xl"
+    >
+      1.000,00 €
+    </p>
+  </article>
+  <article
+    class="min-w-0 rounded-[22px] border p-4 sm:p-5 border-white/8 bg-white/[0.04]"
+  >
+    <p
+      class="break-words text-sm font-medium text-slate-400"
+    >
+      Gastado
+    </p>
+    <p
+      class="mt-3 break-words text-2xl font-semibold tracking-tight text-white sm:text-3xl"
+    >
+      420,00 €
+    </p>
+  </article>
+</section>
+`;
+
+exports[`bloques visuales del Copiloto > renderiza question y conserva un snapshot 1`] = `
+<section
+  aria-labelledby="question-title"
+  class="min-w-0 max-w-full rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] sm:p-6 border-cyan-400/15 bg-cyan-500/[0.055]"
+>
+  <p
+    class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200"
+  >
+    Pregunta del Copiloto
+  </p>
+  <h2
+    class="mt-2 text-xl font-semibold text-white"
+    id="question-title"
+  >
+    ¿Por qué ocurrió?
+  </h2>
+  <p
+    class="mt-2 text-sm leading-6 text-slate-400"
+  >
+    Ayuda a contextualizar el dato.
+  </p>
+  <div
+    aria-label="¿Por qué ocurrió?"
+    class="mt-5 grid gap-2 sm:grid-cols-2"
+    role="group"
+  >
+    <button
+      class="flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+      type="button"
+    >
+      <span
+        aria-hidden="true"
+        class="h-3 w-3 shrink-0 rounded-full border border-cyan-200/70"
+      />
+      Vacaciones
+    </button>
+    <button
+      class="flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+      type="button"
+    >
+      <span
+        aria-hidden="true"
+        class="h-3 w-3 shrink-0 rounded-full border border-cyan-200/70"
+      />
+      Compra puntual
+    </button>
+  </div>
+</section>
+`;
+
+exports[`bloques visuales del Copiloto > renderiza recommendation y conserva un snapshot 1`] = `
+<section
+  aria-labelledby="recommendation-title"
+  class="min-w-0 max-w-full rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] sm:p-6 border-violet-400/20 bg-[linear-gradient(135deg,rgba(124,58,237,0.14),rgba(37,99,235,0.05))]"
+>
+  <div
+    class="flex items-start gap-4"
+  >
+    <span
+      aria-hidden="true"
+      class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 text-xl"
+    >
+      💡
+    </span>
+    <div
+      class="min-w-0"
+    >
+      <p
+        class="text-xs font-semibold uppercase tracking-[0.16em] text-violet-200"
+      >
+        Recomendación · 
+        high
+      </p>
+      <h2
+        class="mt-2 break-words text-xl font-semibold text-white"
+        id="recommendation-title"
+      >
+        Mantén el ritmo
+      </h2>
+      <p
+        class="mt-2 break-words text-sm leading-6 text-slate-300"
+      >
+        El consejo recibido del backend.
+      </p>
+      <ul
+        class="mt-4 grid gap-2 text-sm text-slate-300"
+      >
+        <li
+          class="flex gap-2"
+        >
+          <span
+            aria-hidden="true"
+          >
+            •
+          </span>
+          <span>
+            El gasto se mantiene estable.
+          </span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+`;
+
+exports[`bloques visuales del Copiloto > renderiza simple_table y conserva un snapshot 1`] = `
+<section
+  aria-labelledby="table-title"
+  class="min-w-0 max-w-full rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] sm:p-6"
+>
+  <div
+    id="table-title"
+  >
+    <div
+      class="min-w-0"
+    >
+      <h2
+        class="mt-1 break-words text-lg font-semibold tracking-tight text-white sm:text-xl"
+      >
+        Movimientos
+      </h2>
+      <p
+        class="mt-2 max-w-3xl break-words text-sm leading-6 text-slate-400"
+      >
+        Datos recibidos.
+      </p>
+    </div>
+  </div>
+  <div
+    class="mt-5 hidden md:block"
+  >
+    <table
+      class="w-full table-fixed border-separate border-spacing-0 text-sm"
+    >
+      <thead>
+        <tr>
+          <th
+            class="border-b border-white/10 px-3 py-3 font-medium text-slate-500 text-left"
+            scope="col"
+          >
+            Gasto
+          </th>
+          <th
+            class="border-b border-white/10 px-3 py-3 font-medium text-slate-500 text-right"
+            scope="col"
+          >
+            Importe
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td
+            class="break-words border-b border-white/5 px-3 py-4 text-slate-200 text-left"
+          >
+            Compra
+          </td>
+          <td
+            class="break-words border-b border-white/5 px-3 py-4 text-slate-200 text-right"
+          >
+            20,00 €
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div
+    class="mt-5 grid gap-3 md:hidden"
+  >
+    <article
+      class="min-w-0 rounded-2xl border border-white/8 bg-black/20 p-4"
+    >
+      <dl
+        class="grid gap-3"
+      >
+        <div
+          class="flex min-w-0 items-start justify-between gap-4"
+        >
+          <dt
+            class="text-xs text-slate-500"
+          >
+            Gasto
+          </dt>
+          <dd
+            class="min-w-0 break-words text-right text-sm font-medium text-slate-200"
+          >
+            Compra
+          </dd>
+        </div>
+        <div
+          class="flex min-w-0 items-start justify-between gap-4"
+        >
+          <dt
+            class="text-xs text-slate-500"
+          >
+            Importe
+          </dt>
+          <dd
+            class="min-w-0 break-words text-right text-sm font-medium text-slate-200"
+          >
+            20,00 €
+          </dd>
+        </div>
+      </dl>
+    </article>
+  </div>
+  <p
+    class="mt-4 text-xs text-slate-500"
+  >
+    1
+     de 
+    1
+     filas
+  </p>
+</section>
+`;
+
+exports[`bloques visuales del Copiloto > renderiza summary_card y conserva un snapshot 1`] = `
+<section
+  aria-labelledby="summary-title"
+  class="min-w-0 max-w-full rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] sm:p-6 overflow-hidden bg-gradient-to-br from-emerald-500/18 to-emerald-400/5"
+>
+  <div
+    class="flex min-w-0 items-start gap-4"
+  >
+    <div
+      aria-hidden="true"
+      class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-xl text-white"
+    >
+      ✓
+    </div>
+    <div
+      class="min-w-0 flex-1"
+    >
+      <div
+        class="min-w-0"
+      >
+        <h2
+          class="mt-1 break-words text-lg font-semibold tracking-tight text-white sm:text-xl"
+        >
+          Julio de 2026
+        </h2>
+      </div>
+      <span
+        class="mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-emerald-200 bg-emerald-500/12"
+      >
+        positive
+      </span>
+    </div>
+  </div>
+  <h1
+    class="mt-7 max-w-4xl break-words text-2xl font-semibold leading-tight tracking-[-0.03em] text-white sm:text-3xl"
+    id="summary-title"
+  >
+    Vais dentro del presupuesto
+  </h1>
+  <p
+    class="mt-3 max-w-3xl text-sm leading-6 text-slate-300 sm:text-base"
+  >
+    Resumen recibido.
+  </p>
+</section>
+`;
