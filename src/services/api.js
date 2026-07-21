@@ -150,6 +150,10 @@ export function getApiErrorMessage(error, fallback = "Ha ocurrido un error") {
     return responseData.detail;
   }
 
+  if (typeof responseData?.error?.message === "string" && responseData.error.message.trim()) {
+    return responseData.error.message;
+  }
+
   if (responseData && typeof responseData === "object") {
     for (const value of Object.values(responseData)) {
       if (Array.isArray(value) && value.length > 0) {

@@ -18,7 +18,7 @@ function CopilotRenderer({ response, onAction, onAnswer, pendingActionId, loadin
         return (
           <VisibleBlock key={block?.id || `${block?.type || "block"}-${index}`}>
             <BlockErrorBoundary>
-              <Component block={block} type={block?.type} onAction={onAction} onAnswer={onAnswer} pendingActionId={pendingActionId} />
+              <Component block={block} type={block?.type} position={index + 1} onAction={onAction} onAnswer={onAnswer} pendingActionId={pendingActionId} />
             </BlockErrorBoundary>
           </VisibleBlock>
         );

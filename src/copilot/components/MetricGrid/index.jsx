@@ -17,21 +17,21 @@ function MetricGrid({ block, state = "ready", error }) {
   if (!Array.isArray(block?.items) || block.items.length === 0) return <BlockMessage title="Sin métricas" message="No hay valores para mostrar en este periodo." />;
 
   return (
-    <section className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3" aria-label="Métricas principales">
+    <section className="min-w-0 overflow-hidden rounded-[22px] border border-white/8 bg-white/[0.025]" aria-label="Métricas de apoyo">
       {block.items.map((item) => {
         const trend = item.trend;
         return (
-          <article key={item.key} className={`min-w-0 rounded-[22px] border p-4 sm:p-5 ${STATUS_TONE[item.status] || STATUS_TONE.neutral}`}>
-            <p className="break-words text-sm font-medium text-slate-400">{item.label}</p>
-            <p className="mt-3 break-words text-2xl font-semibold tracking-tight text-white sm:text-3xl">{displayMetricValue(item)}</p>
-            {item.help_text ? <p className="mt-2 text-xs leading-5 text-slate-500">{item.help_text}</p> : null}
+          <article key={item.key} className={`flex min-w-0 items-start justify-between gap-4 border-b border-white/6 p-4 last:border-b-0 sm:p-5 ${STATUS_TONE[item.status] || STATUS_TONE.neutral}`}>
+            <div className="min-w-0"><p className="break-words text-sm font-medium text-slate-300">{item.label}</p>
+            {item.help_text ? <p className="mt-1 text-xs leading-5 text-slate-500">{item.help_text}</p> : null}</div>
+            <div className="shrink-0 text-right"><p className="break-words text-lg font-semibold tracking-tight text-white sm:text-xl">{displayMetricValue(item)}</p>
             {trend ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+              <div className="mt-1 flex flex-wrap items-center justify-end gap-1.5 text-[11px] text-slate-500">
                 <span aria-hidden="true">{trend.direction === "up" ? "↑" : trend.direction === "down" ? "↓" : "→"}</span>
                 <span className="font-semibold text-slate-200">{trend.formatted_value}</span>
                 <span>{trend.comparison_label}</span>
               </div>
-            ) : null}
+            ) : null}</div>
           </article>
         );
       })}

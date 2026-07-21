@@ -1,4 +1,5 @@
 import Navbar from "../components/Navbar";
+import FloatingCopilot from "../copilot/components/FloatingCopilot";
 
 const AppLayout = ({ children, showNavbar = true }) => {
   return (
@@ -13,6 +14,7 @@ const AppLayout = ({ children, showNavbar = true }) => {
       <main className="relative mx-auto w-full min-w-0 max-w-[1600px] overflow-x-clip px-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] pb-[calc(var(--safe-bottom)+2.5rem)] pt-6 sm:px-[max(1.5rem,var(--safe-left))] sm:pr-[max(1.5rem,var(--safe-right))] lg:px-[max(2rem,var(--safe-left))] lg:pr-[max(2rem,var(--safe-right))] xl:px-[max(2.5rem,var(--safe-left))] xl:pr-[max(2.5rem,var(--safe-right))]">
         {children}
       </main>
+      {showNavbar ? <FloatingCopilot /> : null}
     </div>
   );
 };

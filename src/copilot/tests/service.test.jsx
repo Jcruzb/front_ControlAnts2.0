@@ -13,4 +13,10 @@ describe("CopilotService", () => {
     await CopilotService.sendIntent("monthly_summary_detail", argumentsValue);
     expect(api.post).toHaveBeenCalledWith(ENDPOINT, { intent: "monthly_summary_detail", arguments: argumentsValue });
   });
+
+  it("envía la pregunta escrita sin interpretarla en frontend", async () => {
+    api.post.mockResolvedValue({ blocks: [] });
+    await CopilotService.sendMessage("¿Cómo vamos este mes?");
+    expect(api.post).toHaveBeenCalledWith(ENDPOINT, { message: "¿Cómo vamos este mes?" });
+  });
 });

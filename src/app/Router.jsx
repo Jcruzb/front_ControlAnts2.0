@@ -14,6 +14,7 @@ import Register from '../pages/Register'
 import { useAuth } from '../hooks/useAuth'
 
 const CopilotPage = lazy(() => import('../copilot/pages/CopilotPage'))
+const NiloLab = lazy(() => import('../pages/NiloLab'))
 
 function AuthLoadingScreen() {
   return (
@@ -69,6 +70,7 @@ function Router() {
         <Route path="/categories" element={<PrivateRoute><Categories /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><Account /></PrivateRoute>} />
         <Route path="/copilot" element={<PrivateRoute><Suspense fallback={<div className="py-20 text-center text-sm text-slate-500">Preparando Copiloto…</div>}><CopilotPage /></Suspense></PrivateRoute>} />
+        <Route path="/nilo-lab" element={<PrivateRoute><Suspense fallback={<div className="py-20 text-center text-sm text-slate-500">Preparando a Nilo…</div>}><NiloLab /></Suspense></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
