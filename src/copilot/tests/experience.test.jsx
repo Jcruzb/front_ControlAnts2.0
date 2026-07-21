@@ -68,6 +68,9 @@ describe("experiencia conversacional de Nilo", () => {
     await screen.findByText("Vais por buen camino.");
     fireEvent.change(screen.getByLabelText("Pregunta para Nilo"), { target: { value: "¿Cómo vamos este mes?" } });
     fireEvent.click(screen.getByRole("button", { name: "Enviar pregunta a Nilo" }));
-    await waitFor(() => expect(CopilotService.sendMessage).toHaveBeenCalledWith("¿Cómo vamos este mes?"));
+    await waitFor(() => expect(CopilotService.sendMessage).toHaveBeenCalledWith(
+      "¿Cómo vamos este mes?",
+      { year: 2026, month: 7 },
+    ));
   });
 });

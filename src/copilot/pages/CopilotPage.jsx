@@ -122,7 +122,7 @@ export default function CopilotPage() {
       setInteracting(true);
       setInteractionError(null);
       setAvatarState("thinking");
-      const nextResponse = await CopilotService.sendMessage(message);
+      const nextResponse = await CopilotService.sendMessage(message, { year, month });
       showAnalyzedResponse(nextResponse);
     } catch (requestError) {
       handleInteractionError(requestError);
@@ -169,7 +169,7 @@ export default function CopilotPage() {
       <section className="mt-10 min-w-0" aria-labelledby="quick-actions-title">
         <div className="mb-3">
           <h2 id="quick-actions-title" className="text-sm font-semibold text-slate-200">Preguntas rápidas</h2>
-          <p className="mt-1 text-xs text-slate-500">Atajos respaldados por el motor de ControlAnts.</p>
+          <p className="mt-1 text-xs text-slate-500">Consultas sobre tus datos reales de {monthLabel}.</p>
         </div>
         <div className="grid min-w-0 grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 lg:grid-cols-3">
           {QUICK_ACTIONS.map((item) => <QuickActionButton key={item.id} label={item.label} icon={item.icon} disabled={busy || permissionDenied} onClick={() => handleQuickAction(item)} />)}

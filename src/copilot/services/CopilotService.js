@@ -9,8 +9,8 @@ const CopilotService = Object.freeze({
       arguments: argumentsValue,
     });
   },
-  sendMessage(message) {
-    return api.post(ENDPOINT, { message });
+  sendMessage(message, context) {
+    return api.post(ENDPOINT, { message, context });
   },
 });
 
