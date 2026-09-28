@@ -10,6 +10,8 @@ function toCurrency(value) {
 export function buildMonthlyBudgetSummary({
   registeredIncome,
   pendingPlannedIncome,
+  incomePlans = [],
+  plannedPaid,
   plannedBudget,
   actualSpent,
   pendingPlannedExpenses,
@@ -17,6 +19,10 @@ export function buildMonthlyBudgetSummary({
 }) {
   const income = toAmount(registeredIncome);
   const pendingIncome = toAmount(pendingPlannedIncome);
+  // Sum every monthly plan, including resolved plans: collecting does not change the forecast.
+  const plannedIncome = toCurrency(incomePlans.reduce(
+    (sum, item) => sum + toAmount(item.planned_amount), 0
+  ));
   const budget = toAmount(plannedBudget);
   const spent = toAmount(actualSpent);
   const pendingExpenses = toAmount(pendingPlannedExpenses);
@@ -26,6 +32,9 @@ export function buildMonthlyBudgetSummary({
   const paymentsAreCurrent = budget > 0 && pendingExpenses <= 0;
 
   return {
+    plannedIncome,
+    projectedBalance: toCurrency(plannedIncome - budget - unplanned),
+    plannedPaid: toAmount(plannedPaid ?? Math.max(spent - unplanned, 0)),
     registeredIncome: income,
     pendingPlannedIncome: pendingIncome,
     projectedIncome: toCurrency(income + pendingIncome),
