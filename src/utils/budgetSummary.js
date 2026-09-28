@@ -1,3 +1,5 @@
+import { getPaidAmount, isMonthCompleted } from "./recurringMonthStatus.js";
+
 function toAmount(value) {
   const amount = Number(value ?? 0);
   return Number.isFinite(amount) ? amount : 0;
@@ -13,6 +15,8 @@ export function buildMonthlyBudgetSummary({
   incomePlans = [],
   plannedPaid,
   plannedBudget,
+  plannedExpenses = [],
+  recurringPayments = [],
   actualSpent,
   pendingPlannedExpenses,
   unplannedSpent,
@@ -24,6 +28,14 @@ export function buildMonthlyBudgetSummary({
     (sum, item) => sum + toAmount(item.planned_amount), 0
   ));
   const budget = toAmount(plannedBudget);
+  // Keep the original plan intact; only closed monthly payments use their actual cost.
+  const closedPaymentAdjustment = [...plannedExpenses, ...recurringPayments].reduce(
+    (sum, item) => isMonthCompleted(item)
+      ? sum + toAmount(getPaidAmount(item)) - toAmount(item.planned_amount)
+      : sum,
+    0
+  );
+  const adjustedPlannedBudget = toCurrency(budget + closedPaymentAdjustment);
   const spent = toAmount(actualSpent);
   const pendingExpenses = toAmount(pendingPlannedExpenses);
   const unplanned = toAmount(unplannedSpent);
@@ -33,7 +45,8 @@ export function buildMonthlyBudgetSummary({
 
   return {
     plannedIncome,
-    projectedBalance: toCurrency(plannedIncome - budget - unplanned),
+    adjustedPlannedBudget,
+    projectedBalance: toCurrency(plannedIncome - adjustedPlannedBudget - unplanned),
     plannedPaid: toAmount(plannedPaid ?? Math.max(spent - unplanned, 0)),
     registeredIncome: income,
     pendingPlannedIncome: pendingIncome,

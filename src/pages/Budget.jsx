@@ -1051,6 +1051,8 @@ export default function Budget() {
     incomePlans: normalizedIncomePlanMonth.items,
     plannedPaid: data?.planned_paid_amount,
     plannedBudget: totalPlannedAmount,
+    plannedExpenses: planned,
+    recurringPayments: recurring,
     actualSpent: totalSpentReal,
     pendingPlannedExpenses: plannedRemainingAmount,
     unplannedSpent: data?.unplanned_total ?? unplannedExpensesTotal,
@@ -1488,14 +1490,14 @@ export default function Budget() {
                 </p>
               </div>
               <div className="min-w-0 rounded-[28px] border border-blue-300/20 bg-blue-500/[0.08] p-4">
-                <MetricLabel help="El presupuesto original incluye gastos planificados y pagos fijos. Los pagos actualizan pagado y pendiente, sin cambiar el presupuesto. Los gastos fuera del presupuesto se muestran aparte.">
+                <MetricLabel help="Incluye gastos planificados y pagos fijos. Mientras el pago esté abierto, cuenta su importe previsto; al cerrarlo este mes, cuenta lo realmente pagado. Al reabrirlo, vuelve a contar el importe previsto. Los gastos fuera del presupuesto se muestran aparte.">
                   Gastos
                 </MetricLabel>
                 <div className="mt-3 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="min-w-0">
                     <p className="text-xs text-blue-100">Presupuestados</p>
                     <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-blue-50">
-                      {monthlySummary.plannedBudget.toFixed(2)} €
+                      {monthlySummary.adjustedPlannedBudget.toFixed(2)} €
                     </p>
                     <p className="mt-3 break-words text-xs leading-relaxed text-blue-100/80">
                       {monthlySummary.plannedPaid.toFixed(2)} € pagados · {monthlySummary.pendingPlannedExpenses.toFixed(2)} € pendientes
@@ -1513,7 +1515,7 @@ export default function Budget() {
                 </div>
               </div>
               <div className={`min-w-0 rounded-[28px] border p-4 ${monthlySummary.projectedBalance >= 0 ? "border-emerald-300/20 bg-emerald-500/[0.08]" : "border-red-300/25 bg-red-500/[0.1]"}`}>
-                <MetricLabel help="Ingresos planificados menos gastos presupuestados y gastos no presupuestados. Los pagos del presupuesto no se descuentan dos veces.">
+                <MetricLabel help="Ingresos planificados menos gastos presupuestados, ajustados al importe pagado de los pagos cerrados, y gastos no presupuestados. Los pagos del presupuesto no se descuentan dos veces.">
                   Balance
                 </MetricLabel>
                 <p className={`mt-2 break-words text-2xl font-semibold tracking-tight ${monthlySummary.projectedBalance >= 0 ? "text-emerald-100" : "text-red-100"}`}>
@@ -2104,8 +2106,8 @@ export default function Budget() {
         title={monthStatusAction.isCompleted ? "¿Cerrar el pago de este mes?" : "¿Reabrir este pago?"}
         description={
           monthStatusAction.isCompleted
-            ? `Ya no aparecerá importe pendiente para ${monthLabel.toLowerCase()}, aunque el pago real sea menor que el planificado. Podrás reabrirlo después.`
-            : `Volverá a mostrarse como pendiente cualquier diferencia entre lo planificado y lo pagado en ${monthLabel.toLowerCase()}.`
+            ? `Ya no aparecerá importe pendiente para ${monthLabel.toLowerCase()}, aunque el pago real sea menor que el planificado. El gasto presupuestado y el balance previsto se ajustarán a lo realmente pagado. Podrás reabrirlo después.`
+            : `Volverá a mostrarse como pendiente cualquier diferencia entre lo planificado y lo pagado en ${monthLabel.toLowerCase()}. El gasto presupuestado y el balance previsto volverán a usar el importe planificado.`
         }
         confirmLabel={monthStatusAction.isCompleted ? "Cerrar pago del mes" : "Reabrir pago"}
         loading={monthStatusAction.loading}

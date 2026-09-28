@@ -105,3 +105,68 @@ test("mes vacío, planes sin versión, decimales y balance negativo", () => {
   assert.equal(nextMonth.plannedIncome, 0.3);
   assert.equal(nextMonth.projectedBalance, -0.15);
 });
+
+
+for (const [label, collection, identity] of [
+  ["fijo", "recurringPayments", { id: 1 }],
+  ["planificado antiguo", "plannedExpenses", { id: 2 }],
+  ["planificado versionado", "plannedExpenses", { id: 3, source: "plan", plan_id: 3 }],
+]) {
+  test(`cerrar y reabrir agua de 50 € pagada por 30 € (${label})`, () => {
+    const payment = { ...identity, planned_amount: "50.00", paid_amount: "30.00",
+      is_completed: false, payment_status: "partially_paid" };
+    const input = { incomePlans: [{ planned_amount: "100.00" }],
+      plannedBudget: 50, plannedPaid: 30, actualSpent: 35, unplannedSpent: 5 };
+    const open = buildMonthlyBudgetSummary({ ...input, [collection]: [payment],
+      pendingPlannedExpenses: 20 });
+    const closedPayment = { ...payment, is_completed: true, payment_status: "completed" };
+    const closed = buildMonthlyBudgetSummary({ ...input, [collection]: [closedPayment],
+      pendingPlannedExpenses: 0 });
+    const reopened = buildMonthlyBudgetSummary({ ...input, [collection]: [payment],
+      pendingPlannedExpenses: 20 });
+    assert.equal(open.adjustedPlannedBudget, 50);
+    assert.equal(open.projectedBalance, 45);
+    assert.equal(closed.adjustedPlannedBudget, 30);
+    assert.equal(closed.projectedBalance, 65);
+    assert.equal(closed.plannedPaid, 30);
+    assert.equal(closed.pendingPlannedExpenses, 0);
+    assert.equal(closed.plannedBudget, 50);
+    assert.equal(closed.balance, open.balance);
+    assert.equal(closedPayment.planned_amount, "50.00");
+    assert.deepEqual(reopened, open);
+  });
+}
+
+test("ajusta solo pagos cerrados y admite cierre sin pagos o con exceso", () => {
+  const summary = buildMonthlyBudgetSummary({
+    incomePlans: [{ planned_amount: 300 }], plannedBudget: 200,
+    plannedExpenses: [
+      { planned_amount: 50, paid_amount: 0, is_completed: true },
+      { planned_amount: 50, paid_amount: 70, payment_status: "completed" },
+    ],
+    recurringPayments: [
+      { planned_amount: 50, paid_amount: 30, payment_status: "partially_paid" },
+      { planned_amount: 50, paid_amount: 50, payment_status: "covered" },
+    ],
+    unplannedSpent: 10,
+  });
+  assert.equal(summary.adjustedPlannedBudget, 170);
+  assert.equal(summary.projectedBalance, 120);
+  assert.equal(summary.unplannedSpent, 10);
+});
+
+test("el ajuste usa importes canónicos, redondea y no se arrastra al siguiente mes", () => {
+  const input = { incomePlans: [{ planned_amount: 1 }], plannedBudget: 0.3 };
+  const closed = buildMonthlyBudgetSummary({ ...input, plannedExpenses: [
+    { planned_amount: 0.1, paid_amount: 0, spent_amount: 99, is_completed: true },
+    { planned_amount: 0.2, spent_amount: 0.1, is_completed: true },
+  ] });
+  assert.equal(closed.adjustedPlannedBudget, 0.1);
+  assert.equal(closed.projectedBalance, 0.9);
+  const nextMonth = buildMonthlyBudgetSummary({ ...input, plannedExpenses: [
+    { planned_amount: 0.1, paid_amount: 0, is_completed: false },
+    { planned_amount: 0.2, paid_amount: 0, is_completed: false },
+  ] });
+  assert.equal(nextMonth.adjustedPlannedBudget, 0.3);
+  assert.equal(nextMonth.projectedBalance, 0.7);
+});
