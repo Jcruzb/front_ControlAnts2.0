@@ -1,3 +1,4 @@
+import Financing from "../pages/Financing";
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import AppLayout from './AppLayout'
@@ -66,6 +67,7 @@ function Router() {
         <Route path="/expenses" element={<PrivateRoute><ExpensesList /></PrivateRoute>} />
         <Route path="/incomes" element={<PrivateRoute><IncomesList /></PrivateRoute>} />
         <Route path="/expenses/new" element={<PrivateRoute><AddExpense /></PrivateRoute>} />
+        <Route path="/financing" element={<PrivateRoute><Financing /></PrivateRoute>} />
         <Route path="/recurring" element={<PrivateRoute><RecurringPayments /></PrivateRoute>} />
         <Route path="/categories" element={<PrivateRoute><Categories /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><Account /></PrivateRoute>} />
