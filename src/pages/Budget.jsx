@@ -600,6 +600,14 @@ export default function Budget() {
   useEffect(() => {
     setExpandedPlannedExpenseId(null);
     setExpandedRecurringExpenseId(null);
+    // Never carry an income dialog into a different ledger month.
+    setReceivingPlan(null);
+    setReceiptError(null);
+    setAdjustingPlan(null);
+    setAdjustModalError(null);
+    setCreatePlanOpen(false);
+    setEditingIncomePlan(null);
+    setCreatePlanError(null);
   }, [month, year]);
 
   async function handleQuickAddSubmit({
@@ -1308,7 +1316,7 @@ export default function Budget() {
     try {
       setReceiptError(null);
       setReceiptLoading(true);
-      await recordIncomeReceipt(receivingPlan.plan_id, { ...payload, year, month });
+      await recordIncomeReceipt(receivingPlan.plan_id, { ...payload, ...receivingPlan.receiptPeriod });
       setReceivingPlan(null);
       await refreshIncomeArea();
     } catch (err) {
@@ -1939,7 +1947,7 @@ export default function Budget() {
                       disabled={!normalizedIncomePlanMonth.canResolve}
                       onConfirm={(item) => {
                         setReceiptError(null);
-                        setReceivingPlan(item);
+                        setReceivingPlan({ ...item, receiptPeriod: { year, month } });
                       }}
                       onEdit={(selectedItem) => {
                         setCreatePlanError(null);
@@ -1974,7 +1982,7 @@ export default function Budget() {
 
       {receivingPlan && <RecordIncomeReceiptModal
         key={`${receivingPlan.plan_id}-${year}-${month}`}
-        isOpen item={receivingPlan} budgetYear={year} budgetMonth={month}
+        isOpen item={receivingPlan} budgetYear={receivingPlan.receiptPeriod.year} budgetMonth={receivingPlan.receiptPeriod.month}
         loading={receiptLoading} error={receiptError}
         onClose={() => { if (!receiptLoading) setReceivingPlan(null); }}
         onSubmit={handleRecordIncomeReceipt}

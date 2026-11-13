@@ -153,7 +153,7 @@ export default function IncomePlanMonthItem({
           )}
         </div>
       ) : null}
-      {canManage && !disabled && status !== "MISSING_VERSION" ? (
+      {canManage && !disabled ? (
         <button type="button" onClick={() => onAdjust(item)} disabled={Boolean(loadingAction)} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-white/[0.08] disabled:opacity-50">
           Cambiar importe previsto
         </button>

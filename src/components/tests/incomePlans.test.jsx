@@ -20,6 +20,14 @@ describe("income plan operations", () => {
     expect(screen.getByRole("button", { name: "Cambiar importe previsto" })).toBeTruthy();
     expect(screen.getByText("Cobrado: + 1600.00 €")).toBeTruthy();
   });
+  it("lets admins repair a plan without an active version", () => {
+    const adjust = vi.fn();
+    const missing = { ...item, status: "MISSING_VERSION", planned_amount: null, can_resolve: false };
+    render(<IncomePlanMonthItem item={missing} canManage onAdjust={adjust} />);
+    expect(screen.queryByRole("button", { name: "Registrar cobro" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cambiar importe previsto" }));
+    expect(adjust).toHaveBeenCalledWith(missing);
+  });
   it("blocks closed-month actions", () => {
     render(<IncomePlanMonthItem item={item} canManage disabled />);
     expect(screen.queryByRole("button")).toBeNull();
