@@ -25,3 +25,14 @@ it("rejects payment above remaining installment before confirmation", () => {
   expect(screen.getByRole("alert")).toHaveTextContent("no superar el pendiente");
   expect(screen.queryByRole("button", { name: "Confirmar pago" })).toBeNull();
 });
+it("keeps a successful payment retry idempotent when refreshing the summary fails", async () => {
+  api.post.mockReset().mockResolvedValue({ created: true });
+  const saved = vi.fn().mockRejectedValueOnce(new Error("refresh failed")).mockResolvedValueOnce();
+  render(<FinancingPaymentForm payment={payment} members={[]} onSaved={saved} />);
+  fireEvent.click(screen.getByRole("button", { name: "Revisar pago" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar pago" }));
+  await screen.findByText("Reintenta");
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar mismo pago" }));
+  await waitFor(() => expect(saved).toHaveBeenCalledTimes(2));
+  expect(api.post.mock.calls[0]).toEqual(api.post.mock.calls[1]);
+});

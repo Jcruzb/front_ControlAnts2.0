@@ -30,10 +30,15 @@ export function FinancingPaymentForm({ payment, members, onClose, onSaved }) {
     if (loading) return;
     const payload = sent || { amount: parseAmount(form.amount).toFixed(2), date: form.date, ...(form.payer ? { payer: Number(form.payer) } : {}), idempotency_key: key };
     setSent(payload); setLoading(true); setError(null);
+    let committed = false;
     try {
       await api.post(`/financing-installments/${payment.row.id}/payments/`, payload);
+      committed = true;
       await onSaved();
-    } catch (err) { setError(getApiErrorMessage(err, "No se pudo confirmar el pago. Reintenta con los mismos datos.")); }
+    } catch (err) {
+      if (!committed && err?.response?.status >= 400 && err.response.status < 500) setSent(null);
+      setError(getApiErrorMessage(err, "No se pudo confirmar el resultado. Reintenta este mismo pago para evitar duplicados."));
+    }
     finally { setLoading(false); }
   }
   return <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center">
@@ -52,12 +57,17 @@ export function FinancingPaymentForm({ payment, members, onClose, onSaved }) {
         {!sent && <button onClick={() => setReview(false)} className="ml-3 text-slate-300">Corregir</button>}
       </div>}
       {error && <p role="alert" className="mt-3 text-red-200">{error}</p>}
-      <button onClick={onClose} disabled={loading} className="mt-4 text-slate-300">Cerrar</button>
+      <button onClick={onClose} disabled={loading || Boolean(sent)} className="mt-4 text-slate-300">Cerrar</button>
     </section>
   </div>;
 }
 
 export default function Financing() {
+  const { user, family, authenticated } = useAuth();
+  return <FinancingWorkspace key={`${authenticated}:${user?.id ?? user?.username ?? ""}:${family?.id ?? ""}`} />;
+}
+
+function FinancingWorkspace() {
   const { profile } = useAuth();
   const [purchases, setPurchases] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -66,21 +76,25 @@ export default function Financing() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [reload, setReload] = useState(0);
   const [cardName, setCardName] = useState("");
   const [payment, setPayment] = useState(null);
   const [form, setForm] = useState({ name: "", category: "", credit_account: "", total_amount: "", installment_count: "3", purchase_date: getTodayLocalDate(), first_due_date: getTodayLocalDate() });
   async function refresh() {
     const [p, a] = await Promise.all([api.get("/financed-purchases/"), api.get("/credit-accounts/")]);
-    setPurchases(unwrapCollectionResponse(p)); setAccounts(unwrapCollectionResponse(a));
+    setPurchases(unwrapCollectionResponse(p)); setAccounts(unwrapCollectionResponse(a)); setLoaded(true);
   }
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     Promise.all([api.get("/financed-purchases/"), api.get("/credit-accounts/"), getCategories(), getFamilyMembers()]).then(([p, a, c, m]) => {
       if (cancelled) return;
-      setPurchases(unwrapCollectionResponse(p)); setAccounts(unwrapCollectionResponse(a)); setCategories(c); setMembers(m);
+      setPurchases(unwrapCollectionResponse(p)); setAccounts(unwrapCollectionResponse(a)); setCategories(c); setMembers(m); setLoaded(true);
     }).catch((err) => { if (!cancelled) setError(getApiErrorMessage(err, "No se pudieron cargar las financiaciones")); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [reload]);
   async function create(event, isCard) {
     event.preventDefault(); if (saving) return;
     setSaving(true); setError(null);
@@ -98,6 +112,7 @@ export default function Financing() {
   }
   const update = (name) => (e) => setForm({ ...form, [name]: e.target.value });
   if (loading) return <p className="p-5 text-slate-300">Cargando financiaciones…</p>;
+  if (!loaded) return <section className="p-5 text-slate-300"><h1 className="text-xl">Financiaciones no disponibles</h1><p role="alert" className="my-3 text-red-200">{error || "No se pudo consultar la deuda pendiente."}</p><button className={button} onClick={() => setReload((value) => value + 1)}>Volver a cargar</button></section>;
   return <main className="mx-auto max-w-5xl space-y-6 p-4 text-white">
     <h1 className="text-2xl font-semibold">Tarjetas y compras financiadas</h1>
     <p className="text-slate-300">La compra crea deuda pendiente. Solo los pagos registrados son gastos reales. Introduce el total a devolver, incluidos intereses o comisiones acordados; no se calculan automáticamente.</p>
@@ -122,6 +137,6 @@ export default function Financing() {
       <p className="mt-2 text-slate-300">Total {money(purchase.total_amount)} · Pagado {money(purchase.paid_amount)} · Pendiente {money(purchase.outstanding_amount)}</p>
       <details className="mt-3"><summary className="cursor-pointer text-emerald-300">Ver calendario de cuotas</summary><ul className="mt-3 space-y-3">{purchase.installments.map((row) => <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3"><div><p>Cuota {row.number} · {row.due_date}</p><p className="text-sm text-slate-400">Previsto {money(row.amount)} · Pagado {money(row.paid_amount)} · Pendiente {money(row.pending_amount)}</p></div>{Number(row.pending_amount) > 0 ? <button className={button} onClick={() => setPayment({ row, name: purchase.name, purchaseDate: purchase.purchase_date })}>Registrar pago</button> : <span className="text-emerald-300">Pagada</span>}</li>)}</ul></details>
     </section>)}
-    {payment && <FinancingPaymentForm payment={payment} members={members} onClose={() => setPayment(null)} onSaved={async () => { setPayment(null); await refresh(); }} />}
+    {payment && <FinancingPaymentForm payment={payment} members={members} onClose={() => setPayment(null)} onSaved={async () => { await refresh(); setPayment(null); }} />}
   </main>;
 }
