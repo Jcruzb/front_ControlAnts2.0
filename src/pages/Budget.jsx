@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { getUnrepresentedIncomes } from "../utils/incomePlans";
+import { Link } from "react-router-dom";
 import BudgetItem from "../components/BudgetItem";
+import RecordIncomeReceiptModal from "../components/RecordIncomeReceiptModal";
 import AdjustIncomePlanModal from "../components/AdjustIncomePlanModal";
 import CreateIncomePlanModal from "../components/CreateIncomePlanModal";
 import IncomePlanMonthItem from "../components/IncomePlanMonthItem";
@@ -22,8 +25,8 @@ import { getCategories } from "../services/categories";
 import { getFamilyMembers } from "../services/familyMembers";
 import {
   createIncomePlan,
-  adjustIncomePlan,
-  confirmIncomePlan,
+  changeIncomePlanAmount,
+  recordIncomeReceipt,
   deleteIncomePlan,
   updateIncomePlan,
   getIncomePlansMonth,
@@ -363,7 +366,9 @@ export default function Budget() {
   const [incomePlanMonthData, setIncomePlanMonthData] = useState(null);
   const [incomePlanMonthLoading, setIncomePlanMonthLoading] = useState(true);
   const [incomePlanMonthError, setIncomePlanMonthError] = useState(null);
-  const [activeIncomePlanAction, setActiveIncomePlanAction] = useState(null);
+  const [receivingPlan, setReceivingPlan] = useState(null);
+  const [receiptError, setReceiptError] = useState(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
   const [adjustingPlan, setAdjustingPlan] = useState(null);
   const [adjustModalError, setAdjustModalError] = useState(null);
   const [adjustModalLoading, setAdjustModalLoading] = useState(false);
@@ -595,6 +600,14 @@ export default function Budget() {
   useEffect(() => {
     setExpandedPlannedExpenseId(null);
     setExpandedRecurringExpenseId(null);
+    // Never carry an income dialog into a different ledger month.
+    setReceivingPlan(null);
+    setReceiptError(null);
+    setAdjustingPlan(null);
+    setAdjustModalError(null);
+    setCreatePlanOpen(false);
+    setEditingIncomePlan(null);
+    setCreatePlanError(null);
   }, [month, year]);
 
   async function handleQuickAddSubmit({
@@ -997,6 +1010,8 @@ export default function Budget() {
     };
   }, [incomePlanMonthBlock]);
 
+  const standaloneIncomes = getUnrepresentedIncomes(incomes, normalizedIncomePlanMonth.items);
+
   const plannedRecurringIncome = useMemo(() => {
     return normalizedIncomePlanMonth.items.reduce((sum, item) => {
       if (item.status !== "PENDING") {
@@ -1296,21 +1311,18 @@ export default function Budget() {
     await Promise.all([fetchBudget(), fetchIncomes(), fetchIncomePlanMonth()]);
   }
 
-  async function handleConfirmIncomePlan(item) {
-    const planId = item?.plan_id;
-    if (!planId) return;
-
+  async function handleRecordIncomeReceipt(payload) {
+    if (!receivingPlan?.plan_id || receiptLoading) return;
     try {
-      setActiveIncomePlanAction({ id: planId, type: "confirm" });
-      await confirmIncomePlan(planId, { year, month });
+      setReceiptError(null);
+      setReceiptLoading(true);
+      await recordIncomeReceipt(receivingPlan.plan_id, { ...payload, ...receivingPlan.receiptPeriod });
+      setReceivingPlan(null);
       await refreshIncomeArea();
     } catch (err) {
-      console.error(err);
-      setIncomePlanMonthError(
-        getApiErrorMessage(err, "No se pudo confirmar el salario planificado")
-      );
+      setReceiptError(getApiErrorMessage(err, "No se pudo registrar el cobro"));
     } finally {
-      setActiveIncomePlanAction(null);
+      setReceiptLoading(false);
     }
   }
 
@@ -1321,11 +1333,7 @@ export default function Budget() {
     try {
       setAdjustModalError(null);
       setAdjustModalLoading(true);
-      await adjustIncomePlan(planId, {
-        ...payload,
-        year,
-        month,
-      });
+      await changeIncomePlanAmount(planId, payload);
       setAdjustingPlan(null);
       await refreshIncomeArea();
     } catch (err) {
@@ -1362,7 +1370,7 @@ export default function Budget() {
       setCreatePlanError(null);
       setCreatePlanLoading(true);
 
-      const plan = await createIncomePlan({
+      await createIncomePlan({
         category: categoryId,
         name: payload.name || "",
         plan_type: payload.planType,
@@ -1372,8 +1380,6 @@ export default function Budget() {
         end_month: payload.planType === "ONE_MONTH" ? selectedMonthId : null,
         planned_amount: amount.toFixed(2),
       });
-
-      await confirmIncomePlan(plan.id, { year, month });
 
       setCreatePlanOpen(false);
       await refreshIncomeArea();
@@ -1417,7 +1423,6 @@ export default function Budget() {
             payload.planType === "ONE_MONTH"
               ? editingIncomePlan.start_month || selectedMonthId
               : editingIncomePlan.end_month || null,
-          planned_amount: plannedAmount.toFixed(2),
         });
 
         setEditingIncomePlan(null);
@@ -1693,19 +1698,23 @@ export default function Budget() {
             </div>
 
             <div className="mt-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-slate-300">Otros cobros registrados</h3>
+                <Link to="/incomes" className="text-sm text-emerald-300 underline">Ver y editar todos los cobros</Link>
+              </div>
               {incomesLoading ? (
                 <p className="text-sm text-slate-400">Cargando ingresos…</p>
               ) : incomesError ? (
                 <p className="rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-200">
                   {incomesError}
                 </p>
-              ) : incomes.length === 0 ? (
+              ) : standaloneIncomes.length === 0 ? (
                 <div className="rounded-[28px] border border-dashed border-white/10 bg-black/20 p-5 text-sm text-slate-400">
-                  No hay ingresos para este mes.
+                  No hay otros cobros registrados para este mes.
                 </div>
               ) : (
                 <ul className="space-y-3">
-                  {incomes.map((income) => (
+                  {standaloneIncomes.map((income) => (
                     <li
                       key={income.id}
                       className="flex items-center justify-between gap-4 rounded-[28px] border border-white/8 bg-black/20 p-4"
@@ -1882,17 +1891,17 @@ export default function Budget() {
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
-                  Salarios planificados
+                  Ingresos recurrentes
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                  Resolución mensual
+                  Cobros del mes
                 </h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Confirma o ajusta los ingresos recurrentes del mes.
+                  Registra lo cobrado sin cambiar el importe previsto de los próximos meses.
                 </p>
               </div>
               <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
-                {canManagePlans ? <button
+                {canManagePlans && !normalizedIncomePlanMonth.isClosed ? <button
                   type="button"
                   onClick={() => {
                     setCreatePlanError(null);
@@ -1901,7 +1910,7 @@ export default function Budget() {
                   }}
                   className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 sm:w-auto"
                 >
-                  + Crear salario recurrente
+                  + Crear ingreso recurrente
                 </button> : null}
                 {normalizedIncomePlanMonth.isClosed && (
                   <span className="self-start rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-medium text-slate-300 sm:self-auto">
@@ -1936,12 +1945,10 @@ export default function Budget() {
                       item={item}
                       canManage={canManagePlans}
                       disabled={!normalizedIncomePlanMonth.canResolve}
-                      loadingAction={
-                        activeIncomePlanAction?.id === item.plan_id
-                          ? activeIncomePlanAction.type
-                          : null
-                      }
-                      onConfirm={handleConfirmIncomePlan}
+                      onConfirm={(item) => {
+                        setReceiptError(null);
+                        setReceivingPlan({ ...item, receiptPeriod: { year, month } });
+                      }}
                       onEdit={(selectedItem) => {
                         setCreatePlanError(null);
                         setEditingIncomePlan(selectedItem);
@@ -1973,8 +1980,16 @@ export default function Budget() {
         </div>
       </section>
 
+      {receivingPlan && <RecordIncomeReceiptModal
+        key={`${receivingPlan.plan_id}-${year}-${month}`}
+        isOpen item={receivingPlan} budgetYear={receivingPlan.receiptPeriod.year} budgetMonth={receivingPlan.receiptPeriod.month}
+        loading={receiptLoading} error={receiptError}
+        onClose={() => { if (!receiptLoading) setReceivingPlan(null); }}
+        onSubmit={handleRecordIncomeReceipt}
+      />}
+
       {canManagePlans ? <AdjustIncomePlanModal
-        key={adjustingPlan?.id || "closed-adjust-income-plan"}
+        key={`${adjustingPlan?.plan_id || "closed"}-${year}-${month}`}
         isOpen={Boolean(adjustingPlan)}
         item={adjustingPlan}
         budgetYear={year}
