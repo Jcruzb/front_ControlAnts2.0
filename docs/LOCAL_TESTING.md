@@ -71,9 +71,14 @@ exclusivamente en el backend.
 
 ## Comprobaciones manuales
 
-1. En Presupuestos → Ingresos, crea un plan: el balance no debe subir y debe quedar
-   pendiente. Registra un importe excepcional; solo debe cambiar lo cobrado en ese
-   mes. Revisa el siguiente mes y confirma que conserva el importe previsto.
+1. En Presupuestos → Ingresos, crea un plan: debe quedar pendiente y aumentar los
+   ingresos previstos y el balance previsto de la cabecera. No debe crear un cobro
+   ni cambiar `Total ingresos` o `Balance real` de la pestaña Ingresos. Registra un
+   importe excepcional: cambia lo cobrado y el balance real de ese mes, pero conserva
+   la previsión. Revisa el siguiente mes y confirma que mantiene el importe previsto.
+   Distingue siempre la cabecera prevista de las cifras reales: con 1000 € previstos,
+   1120 € recibidos, 22,50 € de gastos no presupuestados y ningún gasto presupuestado,
+   la cabecera muestra 977,50 € previstos y la pestaña Ingresos 1097,50 € de balance real.
 2. Cambia el importe previsto desde un mes elegido: no debe crear un cobro. Comprueba
    que un mes cerrado bloquea las modificaciones y que un miembro puede cobrar,
    pero no configurar el plan. Cambiar de mes cierra los diálogos abiertos.

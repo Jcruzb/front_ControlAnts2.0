@@ -77,16 +77,28 @@ Carga solo la skill que aplique a la tarea:
 
 ## Resumen mensual de Budget
 
-- La cabecera principal muestra cuatro métricas: `Presupuesto`, `Ingresos`,
-  `Balance` y `Gasto real`.
+- La cabecera principal muestra `Ingresos`, `Gastos` y `Balance` como resumen
+  **previsto**, según el comportamiento incorporado en septiembre de 2026.
+- `Ingresos` de la cabecera suma los importes previstos de todos los planes del
+  mes, incluidos los ya cobrados. Los ingresos registrados y los previstos aún
+  pendientes aparecen como contexto secundario. Crear un plan modifica lo
+  previsto; registrar un cobro, incluso excepcional, no modifica esa previsión.
+- `Gastos` separa presupuestados y no presupuestados. El importe presupuestado
+  conserva el previsto mientras el pago mensual está abierto; si se cierra,
+  utiliza lo realmente pagado. Reabrirlo restaura el importe previsto.
+- `Balance` de la cabecera es `ingresos previstos - presupuesto ajustado por
+  cierres mensuales - gastos no presupuestados`. El texto «Disponible previsto al
+  finalizar el mes» identifica esta métrica; no es el balance de caja real.
+- En la pestaña `Ingresos`, `Total ingresos` suma los movimientos registrados y
+  `Balance real` es `ingresos registrados - gasto real`. Un ingreso puntual o un
+  cobro excepcional afecta estas cifras reales sin cambiar los importes previstos.
 - `Gasto real` consume `actual_spent` de `/api/budget/`, con `total_spent` como
   fallback compatible; incluye movimientos planificados, fijos y no planificados.
-- `unplanned_total` es un desglose de `actual_spent` y nunca se suma de nuevo.
-- `Ingresos` muestra únicamente movimientos registrados. Los planes de ingreso
-  pendientes aparecen como contexto secundario, no dentro del balance real.
-- `Balance` es `ingresos registrados - gasto real`.
-- `Por pagar` y `no planificado` son desgloses secundarios, no tarjetas
-  principales.
+  `unplanned_total` es un desglose de ese gasto: nunca se suma de nuevo al calcular
+  el balance real. Los pagos del presupuesto tampoco se descuentan dos veces del
+  balance previsto.
+- No intercambiar `balance` y `projectedBalance` de `buildMonthlyBudgetSummary`:
+  ambos representan conceptos distintos y tienen pruebas de regresión.
 - El rojo se reserva para exceso de presupuesto o balance negativo. Los estados
   `covered` y `completed` son positivos y se muestran en verde.
 
