@@ -125,6 +125,7 @@ export default function CreateIncomePlanModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={loading}
             className="rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/[0.08]"
           >
             ✕
@@ -179,6 +180,7 @@ export default function CreateIncomePlanModal({
                 type="text"
                 inputMode="decimal"
                 min="0"
+                disabled={Boolean(initialData)}
                 value={form.amount}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, amount: event.target.value }))
@@ -223,8 +225,7 @@ export default function CreateIncomePlanModal({
           </div>
 
           <div className="rounded-[24px] border border-white/8 bg-black/20 p-4 text-sm text-slate-300">
-            El plan se crea para el mes seleccionado y luego aparecerá en la resolución mensual
-            de ingresos recurrentes. Los ingresos manuales seguirán siendo ingresos puntuales.
+            {initialData ? "Para modificar el importe utiliza Cambiar importe previsto en la tarjeta del ingreso." : "Crear el plan no registra ningún cobro. Cuando recibas el dinero, utiliza Registrar cobro."}
           </div>
 
           {categoriesError && (
@@ -254,6 +255,7 @@ export default function CreateIncomePlanModal({
             <button
               type="button"
               onClick={onClose}
+            disabled={loading}
               className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-sm font-medium text-slate-200 transition hover:bg-white/[0.08]"
             >
               Cancelar

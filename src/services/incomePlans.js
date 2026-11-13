@@ -43,3 +43,12 @@ export function adjustIncomePlan(id, payload) {
     },
   });
 }
+
+// These operations deliberately separate actual cash from the recurring forecast.
+export function recordIncomeReceipt(id, { year, month, ...data }) {
+  return api.post(`/income-plans/${id}/record-receipt/`, data, { params: { year, month } });
+}
+
+export function changeIncomePlanAmount(id, { year, month, ...data }) {
+  return api.post(`/income-plans/${id}/change-planned-amount/`, data, { params: { year, month } });
+}
