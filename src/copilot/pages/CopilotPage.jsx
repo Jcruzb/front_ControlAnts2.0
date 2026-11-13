@@ -5,6 +5,7 @@ import { useBudgetMonth } from "../../hooks/useBudgetMonth";
 import Nilo from "../../components/Nilo";
 import ActionGroup from "../components/ActionGroup";
 import ConversationInput from "../components/ConversationInput";
+import MovementRegistration from "../components/MovementRegistration";
 import CopilotGreeting from "../components/CopilotGreeting";
 import CopilotHeader from "../components/CopilotHeader";
 import QuickActionButton from "../components/QuickActionButton";
@@ -32,7 +33,7 @@ function avatarStateFromStatus(status) {
 }
 
 export default function CopilotPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, family, authenticated } = useAuth();
   const { year, month, monthLabel } = useBudgetMonth();
   const [response, setResponse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -180,6 +181,8 @@ export default function CopilotPage() {
       <div className="mt-9">
         <ConversationInput onSubmit={handleMessage} disabled={busy || permissionDenied} error={interactionError} />
       </div>
+
+      <MovementRegistration key={`${authenticated}-${user?.id}-${family?.id}-${year}-${month}`} year={year} month={month} onRecorded={loadSummary} />
 
       {!loading && !error && categorized.detailBlocks.length ? (
         <details className="mt-8 min-w-0 rounded-[24px] border border-white/7 bg-black/10 p-1" open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
