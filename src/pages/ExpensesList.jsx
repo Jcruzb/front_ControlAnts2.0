@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import ExpenseFinancingModal from "../components/ExpenseFinancingModal";
 import MonthNavigation from "../components/MonthNavigation";
 import ListControls from "../components/ListControls";
 import BulkImportModal from "../components/BulkImportModal";
@@ -79,7 +82,7 @@ function getExpensePayerName(expense) {
   return null;
 }
 
-function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
+function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails, onConvert }) {
   const title = expense.description || "Gasto";
   const subtitle = getExpenseCategoryName(expense);
   const payerName = getExpensePayerName(expense);
@@ -137,12 +140,15 @@ function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
           </p>
         </div>
 
-        {isCompleted ? (
+        {expense.financing ? (
+          <Link to={`/financing#purchase-${expense.financing.purchase_id}`} className="text-sm text-emerald-300">Ver financiación · pago protegido</Link>
+        ) : isCompleted ? (
           <span className="max-w-48 text-right text-xs text-slate-400">Reabre el pago mensual para editar movimientos.</span>
         ) : <CardActionsMenu
           title={title}
           subtitle={subtitle}
           actions={[
+            ...(onConvert ? [{ label: "Convertir a tarjeta o financiación", onSelect: () => onConvert(expense) }] : []),
             {
               label: "Editar",
               onSelect: () => onEdit(expense),
@@ -159,7 +165,10 @@ function ExpenseCard({ expense, onEdit, onDelete, onOpenDetails }) {
   );
 }
 
-const ExpensesList = () => {
+const ExpensesWorkspace = () => {
+  const { profile, user, family } = useAuth();
+  const [convertingExpense, setConvertingExpense] = useState(null);
+  const [conversionMessage, setConversionMessage] = useState(null);
   const {
     currentYear,
     goNextMonth,
@@ -770,6 +779,7 @@ const ExpensesList = () => {
         </div>
       ) : null}
 
+      {conversionMessage && <p role="status" className="rounded-xl bg-emerald-500/10 p-4 text-emerald-200">{conversionMessage}</p>}
       <div className="space-y-3">
         {filteredExpenses.map((expense) => (
           <ExpenseCard
@@ -781,6 +791,7 @@ const ExpensesList = () => {
             }}
             onDelete={handleDeleteExpense}
             onOpenDetails={setDetailExpense}
+            onConvert={profile?.role === "admin" ? setConvertingExpense : undefined}
           />
         ))}
       </div>
@@ -809,6 +820,20 @@ const ExpensesList = () => {
         emptyPreviewMessage="Carga una plantilla Excel para previsualizar los gastos."
       />
 
+      {convertingExpense && <ExpenseFinancingModal
+        key={`${user?.id}:${family?.id}:${convertingExpense.id}`}
+        expense={convertingExpense}
+        categories={categories}
+        onClose={() => { setConvertingExpense(null); fetchExpenses({ silent: true }); }}
+        onSaved={async (purchase) => {
+          const data = await api.get("/expenses/", { params: { year, month } });
+          setExpenses(unwrapCollectionResponse(data));
+          setDetailExpense(null);
+          setConvertingExpense(null);
+          setConversionMessage(`Gasto vinculado a ${purchase.name}. Lo ya pagado se conserva y no se ha duplicado ningún gasto.`);
+        }}
+      />}
+
       <ExpenseFormModal
         key={editingExpense?.id ?? "expense-form"}
         isOpen={Boolean(editingExpense)}
@@ -824,6 +849,11 @@ const ExpensesList = () => {
           setFormError(null);
         }}
         onSubmit={handleSaveExpense}
+        onConvert={profile?.role === "admin" && !editingExpense?.financing && !isExpenseMonthCompleted(editingExpense) ? () => {
+          setConvertingExpense(editingExpense);
+          setEditingExpense(null);
+          setDetailExpense(null);
+        } : undefined}
       />
 
       <ExpenseDetailSheet
@@ -850,6 +880,7 @@ const ExpensesList = () => {
                       },
                     ]
                   : []),
+                ...(detailExpense.financing ? [{ label: "Financiación", value: "Pago vinculado y protegido" }] : []),
                 ...(isExpenseMonthCompleted(detailExpense)
                   ? [{ label: "Estado mensual", value: "Completado" }]
                   : []),
@@ -872,11 +903,11 @@ const ExpensesList = () => {
         }
         emptyMessage="Este gasto no tiene más pagos asociados."
         onClose={() => setDetailExpense(null)}
-        onEditPayment={isExpenseMonthCompleted(detailExpense) ? undefined : (payment) => {
+        onEditPayment={detailExpense?.financing || isExpenseMonthCompleted(detailExpense) ? undefined : (payment) => {
           setFormError(null);
           setEditingExpense(payment);
         }}
-        onDeletePayment={isExpenseMonthCompleted(detailExpense) ? undefined : handleDeleteExpense}
+        onDeletePayment={detailExpense?.financing || isExpenseMonthCompleted(detailExpense) ? undefined : handleDeleteExpense}
         getPaymentCategoryLabel={(payment) => getExpenseCategoryName(payment)}
       />
 
@@ -901,4 +932,7 @@ const ExpensesList = () => {
   );
 };
 
-export default ExpensesList;
+export default function ExpensesList() {
+  const { user, family, authenticated } = useAuth();
+  return <ExpensesWorkspace key={`${authenticated}:${user?.id ?? user?.username ?? ""}:${family?.id ?? ""}`} />;
+}

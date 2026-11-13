@@ -32,6 +32,7 @@ export default function ExpenseFormModal({
   error = null,
   onClose,
   onSubmit,
+  onConvert,
 }) {
   const [form, setForm] = useState(() => buildInitialForm(expense));
   const [amountError, setAmountError] = useState(null);
@@ -86,6 +87,10 @@ export default function ExpenseFormModal({
           </button>
         </div>
 
+        {onConvert && <div className="mb-4 border-b border-white/10 pb-4">
+          <button type="button" disabled={loading} onClick={onConvert} className="text-sm font-semibold text-emerald-300">Convertir a tarjeta o financiación</button>
+          <p className="mt-1 text-xs text-slate-400">Usará los datos guardados del gasto. Los cambios sin guardar de este formulario no se aplicarán.</p>
+        </div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <span className="text-sm text-slate-400">Importe</span>

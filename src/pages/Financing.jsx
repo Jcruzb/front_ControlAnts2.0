@@ -147,10 +147,11 @@ function FinancingWorkspace() {
       </form>
     </details>}
     {purchases.length === 0 && <p className="text-slate-400">No hay compras financiadas.</p>}
-    {purchases.map((purchase) => <section key={purchase.id} className="min-w-0 rounded-2xl border border-white/10 p-4">
+    {purchases.map((purchase) => <section key={purchase.id} id={`purchase-${purchase.id}`} className="min-w-0 rounded-2xl border border-white/10 p-4">
       <h2 className="break-words text-lg font-semibold">{purchase.name}</h2>
       <p className="mt-2 text-slate-300">Total {money(purchase.total_amount)} · Pagado {money(purchase.paid_amount)} · Pendiente {money(purchase.outstanding_amount)}</p>
-      <details className="mt-3"><summary className="cursor-pointer text-emerald-300">Ver calendario de cuotas</summary><ul className="mt-3 space-y-3">{purchase.installments.map((row) => <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3"><div><p>Cuota {row.number} · {row.due_date}</p><p className="text-sm text-slate-400">Previsto {money(row.amount)} · Pagado {money(row.paid_amount)} · Pendiente {money(row.pending_amount)}</p></div>{Number(row.pending_amount) > 0 ? <button className={button} onClick={() => setPayment({ row, name: purchase.name, purchaseDate: purchase.purchase_date })}>Registrar pago</button> : <span className="text-emerald-300">Pagada</span>}</li>)}</ul></details>
+      {purchase.initial_payment && <p className="mt-2 text-sm text-emerald-200">Pago ya registrado: {money(purchase.initial_payment.amount)} · {purchase.initial_payment.date}. Conservado sin duplicarlo.</p>}
+      {purchase.installments.length === 0 ? <p className="mt-3 text-emerald-200">Pagada por completo; sin cuotas pendientes.</p> : <details className="mt-3"><summary className="cursor-pointer text-emerald-300">Ver calendario de cuotas</summary><ul className="mt-3 space-y-3">{purchase.installments.map((row) => <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3"><div><p>Cuota {row.number} · {row.due_date}</p><p className="text-sm text-slate-400">Previsto {money(row.amount)} · Pagado {money(row.paid_amount)} · Pendiente {money(row.pending_amount)}</p></div>{Number(row.pending_amount) > 0 ? <button className={button} onClick={() => setPayment({ row, name: purchase.name, purchaseDate: purchase.purchase_date })}>Registrar pago</button> : <span className="text-emerald-300">Pagada</span>}</li>)}</ul></details>}
     </section>)}
     {payment && <FinancingPaymentForm payment={payment} members={members} onClose={() => setPayment(null)} onSaved={async () => { await refresh(); setPayment(null); }} />}
   </main>;
