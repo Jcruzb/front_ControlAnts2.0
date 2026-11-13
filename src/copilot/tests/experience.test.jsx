@@ -10,6 +10,7 @@ const auth = vi.hoisted(() => ({ value: { user: { id: 1, username: "Juan" }, fam
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => auth.value }));
 vi.mock("../../hooks/useBudgetMonth", () => ({ useBudgetMonth: () => ({ year: 2026, month: 7, monthLabel: "Julio 2026" }) }));
 vi.mock("../services/CopilotService", () => ({ default: { sendIntent: vi.fn(), sendMessage: vi.fn() } }));
+vi.mock("../../services/api", () => ({ default: { get: vi.fn(async () => []) }, unwrapCollectionResponse: (data) => data, getApiErrorMessage: () => "Error de prueba" }));
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }) => <div>{children}</div>,
   BarChart: ({ children }) => <div>{children}</div>,

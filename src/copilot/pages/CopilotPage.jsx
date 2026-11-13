@@ -5,6 +5,7 @@ import { useBudgetMonth } from "../../hooks/useBudgetMonth";
 import Nilo from "../../components/Nilo";
 import ActionGroup from "../components/ActionGroup";
 import ConversationInput from "../components/ConversationInput";
+import MovementRegistration from "../components/MovementRegistration";
 import CopilotGreeting from "../components/CopilotGreeting";
 import CopilotHeader from "../components/CopilotHeader";
 import QuickActionButton from "../components/QuickActionButton";
@@ -224,7 +225,7 @@ function CopilotConversation() {
             <h2 className="text-sm font-semibold text-slate-200">Conversación</h2>
             <button type="button" disabled={busy} onClick={() => { setHistory([]); setAiRetry(null); }} className="min-h-11 text-sm text-slate-400 disabled:opacity-50">Borrar conversación</button>
           </div>
-          <p className="mb-3 text-xs text-slate-500">Últimas 10 consultas de esta sesión. Nilo solo consulta datos; no registra operaciones.</p>
+          <p className="mb-3 text-xs text-slate-500">Últimas 10 consultas de esta sesión. Las consultas no registran operaciones. Para añadir movimientos, revisa y confirma en Registrar con Nilo.</p>
           <ol className="space-y-4" aria-live="polite">
             {history.map((turn) => (
               <li key={turn.id} className="min-w-0 rounded-2xl border border-white/10 p-4">
@@ -250,6 +251,8 @@ function CopilotConversation() {
       <div className="mt-9">
         <ConversationInput onSubmit={handleMessage} disabled={busy || permissionDenied} error={interactionError} />
       </div>
+
+      <MovementRegistration year={year} month={month} onRecorded={loadSummary} />
 
       {!loading && !error && categorized.detailBlocks.length ? (
         <details className="mt-8 min-w-0 rounded-[24px] border border-white/7 bg-black/10 p-1" open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
