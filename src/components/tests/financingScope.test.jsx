@@ -1,0 +1,30 @@
+import { it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import Financing from "../../pages/Financing";
+import api from "../../services/api";
+const scope = vi.hoisted(() => ({ user: { id: 1 }, family: { id: 1 }, authenticated: true, profile: { role: "member" } }));
+vi.mock("../../hooks/useAuth", () => ({ useAuth: () => scope }));
+vi.mock("../../services/api", () => ({ default: { get: vi.fn() }, getApiErrorMessage: () => "Error de conexión", unwrapCollectionResponse: (data) => data }));
+vi.mock("../../services/categories", () => ({ getCategories: vi.fn(async () => []) }));
+vi.mock("../../services/familyMembers", () => ({ getFamilyMembers: vi.fn(async () => []) }));
+beforeEach(() => { api.get.mockReset(); scope.family = { id: 1 }; });
+it("shows unknown debt instead of zero when initial loading fails", async () => {
+  api.get.mockRejectedValue(new Error("offline"));
+  render(<Financing />);
+  await screen.findByText("Financiaciones no disponibles");
+  expect(screen.queryByText(/Deuda pendiente:/)).toBeNull();
+  expect(screen.queryByText("No hay compras financiadas.")).toBeNull();
+});
+it("discards financial responses from the previous family", async () => {
+  let resolveOld;
+  api.get.mockImplementation((url) => url === "/financed-purchases/" ? new Promise((resolve) => { resolveOld = resolve; }) : Promise.resolve([]));
+  const view = render(<Financing />);
+  await waitFor(() => expect(resolveOld).toBeTypeOf("function"));
+  scope.family = { id: 2 };
+  api.get.mockResolvedValue([]);
+  view.rerender(<Financing />);
+  await screen.findByText("No hay compras financiadas.");
+  resolveOld([{ id: 7, name: "Private old purchase", outstanding_amount: "900", total_amount: "900", paid_amount: "0", installments: [] }]);
+  await waitFor(() => expect(screen.queryByText("Private old purchase")).toBeNull());
+  expect(screen.getByText("Deuda pendiente: 0.00 €")).toBeTruthy();
+});

@@ -7,6 +7,7 @@ import AddCategoryModal from "./AddCategoryModal";
 const NAV_ITEMS = [
   { label: "Presupuesto", path: "/" },
   { label: "Gastos fijos", path: "/recurring" },
+  { label: "Financiaciones", path: "/financing" },
   { label: "Gastos", path: "/expenses" },
   { label: "Ingresos", path: "/incomes" },
   { label: "Dashboard", path: "/dashboard" },
