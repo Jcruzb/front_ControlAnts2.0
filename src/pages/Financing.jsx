@@ -80,6 +80,7 @@ function FinancingWorkspace() {
   const [reload, setReload] = useState(0);
   const [cardName, setCardName] = useState("");
   const [payment, setPayment] = useState(null);
+  const [purchaseRequest, setPurchaseRequest] = useState(null);
   const [form, setForm] = useState({ name: "", category: "", credit_account: "", total_amount: "", installment_count: "3", purchase_date: getTodayLocalDate(), first_due_date: getTodayLocalDate() });
   async function refresh() {
     const [p, a] = await Promise.all([api.get("/financed-purchases/"), api.get("/credit-accounts/")]);
@@ -98,16 +99,29 @@ function FinancingWorkspace() {
   async function create(event, isCard) {
     event.preventDefault(); if (saving) return;
     setSaving(true); setError(null);
+    let committed = false;
     try {
-      if (isCard) { await api.post("/credit-accounts/", { name: cardName }); setCardName(""); }
-      else {
+      if (isCard) {
+        await api.post("/credit-accounts/", { name: cardName });
+        setCardName("");
+        await refresh();
+      } else {
         const amount = parseAmount(form.total_amount);
         if (!Number.isFinite(amount) || amount <= 0) throw new Error("Introduce un importe válido");
-        await api.post("/financed-purchases/", { ...form, category: Number(form.category), credit_account: form.credit_account ? Number(form.credit_account) : null, total_amount: amount.toFixed(2), installment_count: Number(form.installment_count) });
+        // Freeze the exact request until both the write and refresh are known
+        // to have succeeded. A lost response must retry the same purchase key.
+        const payload = purchaseRequest || { ...form, category: Number(form.category), credit_account: form.credit_account ? Number(form.credit_account) : null, total_amount: amount.toFixed(2), installment_count: Number(form.installment_count), idempotency_key: crypto.randomUUID() };
+        setPurchaseRequest(payload);
+        await api.post("/financed-purchases/", payload);
+        committed = true;
+        await refresh();
+        setPurchaseRequest(null);
         setForm({ ...form, name: "", total_amount: "" });
       }
-      await refresh();
-    } catch (err) { setError(getApiErrorMessage(err, err.message || "No se pudo guardar")); }
+    } catch (err) {
+      if (!isCard && !committed && err?.response?.status >= 400 && err.response.status < 500) setPurchaseRequest(null);
+      setError(getApiErrorMessage(err, "No se pudo confirmar el resultado. Reintenta la misma compra para evitar duplicar la deuda."));
+    }
     finally { setSaving(false); }
   }
   const update = (name) => (e) => setForm({ ...form, [name]: e.target.value });
@@ -120,15 +134,16 @@ function FinancingWorkspace() {
     {error && <p role="alert" className="rounded-xl bg-red-500/10 p-4 text-red-200">{error}</p>}
     {profile?.role === "admin" && <details className="rounded-2xl border border-white/10 p-4"><summary className="cursor-pointer font-semibold">Añadir tarjeta o compra</summary>
       <form onSubmit={(e) => create(e, true)} className="my-4 flex flex-wrap items-end gap-3"><label className="min-w-0 flex-1">Nombre de tarjeta o cuenta<input maxLength={100} className={field} value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="Solo un nombre, sin número de tarjeta" required /></label><button disabled={saving} className={button}>Crear tarjeta</button></form>
+      {purchaseRequest && <p role="status" className="mb-4 text-sm text-amber-200">La solicitud está pendiente de verificar. Los datos quedan bloqueados: reintenta esta misma compra para recuperar el resultado sin duplicar la deuda.</p>}
       <form onSubmit={(e) => create(e, false)} className="grid gap-4 sm:grid-cols-2">
-        <label>Compra<input className={field} value={form.name} onChange={update("name")} maxLength={100} required /></label>
-        <label>Categoría<select className={field} value={form.category} onChange={update("category")} required><option value="">Selecciona categoría</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-        <label>Tarjeta o cuenta (opcional)<select className={field} value={form.credit_account} onChange={update("credit_account")}><option value="">Sin tarjeta asociada</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-        <label>Total a devolver (€)<input className={field} inputMode="decimal" value={form.total_amount} onChange={update("total_amount")} required /></label>
-        <label>Fecha de compra<input className={field} type="date" value={form.purchase_date} onChange={update("purchase_date")} required /></label>
-        <label>Primera cuota<input className={field} type="date" min={form.purchase_date} value={form.first_due_date} onChange={update("first_due_date")} required /></label>
-        <label>Número de cuotas mensuales<input className={field} type="number" min="1" max="360" value={form.installment_count} onChange={update("installment_count")} required /></label>
-        <div className="self-end"><p className="mb-2 text-sm text-slate-400">No se registra ningún gasto al crear. El redondeo se ajusta en la última cuota.</p><button disabled={saving} className={button}>Crear compra y calendario</button></div>
+        <label>Compra<input disabled={saving || Boolean(purchaseRequest)} className={field} value={form.name} onChange={update("name")} maxLength={100} required /></label>
+        <label>Categoría<select disabled={saving || Boolean(purchaseRequest)} className={field} value={form.category} onChange={update("category")} required><option value="">Selecciona categoría</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <label>Tarjeta o cuenta (opcional)<select disabled={saving || Boolean(purchaseRequest)} className={field} value={form.credit_account} onChange={update("credit_account")}><option value="">Sin tarjeta asociada</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+        <label>Total a devolver (€)<input disabled={saving || Boolean(purchaseRequest)} className={field} inputMode="decimal" value={form.total_amount} onChange={update("total_amount")} required /></label>
+        <label>Fecha de compra<input disabled={saving || Boolean(purchaseRequest)} className={field} type="date" value={form.purchase_date} onChange={update("purchase_date")} required /></label>
+        <label>Primera cuota<input disabled={saving || Boolean(purchaseRequest)} className={field} type="date" min={form.purchase_date} value={form.first_due_date} onChange={update("first_due_date")} required /></label>
+        <label>Número de cuotas mensuales<input disabled={saving || Boolean(purchaseRequest)} className={field} type="number" min="1" max="360" value={form.installment_count} onChange={update("installment_count")} required /></label>
+        <div className="self-end"><p className="mb-2 text-sm text-slate-400">No se registra ningún gasto al crear. El redondeo se ajusta en la última cuota.</p><button disabled={saving} className={button}>{purchaseRequest ? "Reintentar misma compra" : "Crear compra y calendario"}</button></div>
       </form>
     </details>}
     {purchases.length === 0 && <p className="text-slate-400">No hay compras financiadas.</p>}
