@@ -32,6 +32,14 @@ function avatarStateFromStatus(status) {
 }
 
 export default function CopilotPage() {
+  const { user, family, authenticated } = useAuth();
+  const { year, month } = useBudgetMonth();
+  // A new identity or period must never inherit financial responses or consent.
+  const scope = `${authenticated}:${user?.id ?? user?.username ?? ""}:${family?.id ?? ""}:${year}-${month}`;
+  return <CopilotConversation key={scope} />;
+}
+
+function CopilotConversation() {
   const { user, profile } = useAuth();
   const { year, month, monthLabel } = useBudgetMonth();
   const [response, setResponse] = useState(null);
@@ -43,6 +51,15 @@ export default function CopilotPage() {
   const [avatarState, setAvatarState] = useState("thinking");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const analysisTimer = useRef(null);
+  const active = useRef(true);
+  const [history, setHistory] = useState([]);
+  const [aiRetry, setAiRetry] = useState(null);
+  const nextTurn = useRef(0);
+
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
 
   const userName = user?.first_name?.trim() || profile?.name?.trim() || user?.username || "";
 
@@ -62,6 +79,7 @@ export default function CopilotPage() {
   const greetingSummary = response?.summary || categorized.summaryBlock?.headline || "";
 
   const showAnalyzedResponse = useCallback((nextResponse) => {
+    if (!active.current) return;
     window.clearTimeout(analysisTimer.current);
     setResponse(nextResponse);
     setError(null);
@@ -117,17 +135,40 @@ export default function CopilotPage() {
     await executeAction({ id: item.id, type: "send_intent", label: item.label, intent: item.intent, arguments: { year, month }, style: "secondary" }, { blockId: "quick-actions" });
   }
 
-  async function handleMessage(message) {
+  async function handleMessage(message, retry = null) {
+    const id = retry?.id ?? ++nextTurn.current;
+    const context = retry?.context ?? { year, month };
+    if (!retry) {
+      setHistory((current) => [...current, { id, message, pending: true }].slice(-10));
+    } else {
+      setHistory((current) => current.map((turn) => turn.id === id ? { ...turn, pending: true, error: null } : turn));
+    }
+    setAiRetry(null);
     try {
       setInteracting(true);
       setInteractionError(null);
       setAvatarState("thinking");
-      const nextResponse = await CopilotService.sendMessage(message, { year, month });
+      const nextResponse = retry
+        ? await CopilotService.sendMessage(message, context, { allowAI: true })
+        : await CopilotService.sendMessage(message, context);
+      if (!active.current) return;
       showAnalyzedResponse(nextResponse);
+      setHistory((current) => current.map((turn) => turn.id === id ? { ...turn, pending: false, response: nextResponse } : turn));
     } catch (requestError) {
-      handleInteractionError(requestError);
+      if (!active.current) return;
+      const needsConsent = requestError?.response?.data?.error?.code === "ai_consent_required";
+      const messageText = needsConsent
+        ? "No he reconocido la consulta. Puedes reformularla o consultar con IA."
+        : getApiErrorMessage(requestError, "Nilo no ha podido responder a esa pregunta.");
+      setHistory((current) => current.map((turn) => turn.id === id ? { ...turn, pending: false, error: messageText } : turn));
+      if (needsConsent && !retry) {
+        setAiRetry({ id, message, context });
+        setAvatarState("attention");
+      } else {
+        handleInteractionError(requestError);
+      }
     } finally {
-      setInteracting(false);
+      if (active.current) setInteracting(false);
     }
   }
 
@@ -176,6 +217,35 @@ export default function CopilotPage() {
         </div>
         {categorized.actionBlocks.map((block) => <ActionGroup key={block.id} block={block} onAction={executeAction} pendingActionId={pendingActionId} />)}
       </section>
+
+      {history.length > 0 && (
+        <section className="mt-8 min-w-0" aria-label="Conversación con Nilo">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-200">Conversación</h2>
+            <button type="button" disabled={busy} onClick={() => { setHistory([]); setAiRetry(null); }} className="min-h-11 text-sm text-slate-400 disabled:opacity-50">Borrar conversación</button>
+          </div>
+          <p className="mb-3 text-xs text-slate-500">Últimas 10 consultas de esta sesión. Nilo solo consulta datos; no registra operaciones.</p>
+          <ol className="space-y-4" aria-live="polite">
+            {history.map((turn) => (
+              <li key={turn.id} className="min-w-0 rounded-2xl border border-white/10 p-4">
+                <p className="break-words text-sm text-white"><span className="font-semibold">Tú: </span>{turn.message}</p>
+                <p className="mt-2 break-words text-sm text-slate-300"><span className="font-semibold">Nilo: </span>{turn.pending ? "Revisando…" : turn.error || turn.response?.summary}</p>
+                {turn.response && <button type="button" disabled={busy} onClick={() => showAnalyzedResponse(turn.response)} className="mt-2 min-h-11 text-sm text-blue-300 disabled:opacity-50">Ver datos de esta respuesta</button>}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {aiRetry && (
+        <div className="mt-4 rounded-2xl border border-blue-400/20 p-4" role="status">
+          <p className="text-sm text-slate-300">Se enviará esta pregunta y el periodo seleccionado al proveedor de IA configurado para interpretar la consulta. Tus movimientos no se envían.</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button type="button" disabled={busy} onClick={() => handleMessage(aiRetry.message, aiRetry)} className="min-h-11 rounded-xl bg-blue-500 px-4 text-sm font-semibold text-white disabled:opacity-50">Consultar con IA</button>
+            <button type="button" disabled={busy} onClick={() => setAiRetry(null)} className="min-h-11 px-4 text-sm text-slate-300">Ahora no</button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-9">
         <ConversationInput onSubmit={handleMessage} disabled={busy || permissionDenied} error={interactionError} />

@@ -9,8 +9,8 @@ const CopilotService = Object.freeze({
       arguments: argumentsValue,
     });
   },
-  sendMessage(message, context) {
-    return api.post(ENDPOINT, { message, context });
+  sendMessage(message, context, { allowAI = false } = {}) {
+    return api.post(ENDPOINT, { message, context, allow_ai: allowAI === true });
   },
 });
 

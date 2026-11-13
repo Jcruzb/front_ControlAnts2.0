@@ -20,6 +20,11 @@ describe("CopilotService", () => {
     expect(api.post).toHaveBeenCalledWith(ENDPOINT, {
       message: "¿Cómo vamos este mes?",
       context: { year: 2026, month: 7 },
+      allow_ai: false,
     });
+  });
+  it("solo permite IA cuando la llamada expresa consentimiento", async () => {
+    await CopilotService.sendMessage("consulta", { year: 2026, month: 7 }, { allowAI: true });
+    expect(api.post).toHaveBeenCalledWith(ENDPOINT, { message: "consulta", context: { year: 2026, month: 7 }, allow_ai: true });
   });
 });
