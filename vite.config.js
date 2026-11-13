@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: "jsdom",
-      include: ["src/copilot/tests/**/*.test.jsx"],
+      include: ["src/copilot/tests/**/*.test.jsx", "src/components/tests/**/*.test.jsx"],
       setupFiles: ["./src/copilot/tests/setup.js"],
     },
   };
