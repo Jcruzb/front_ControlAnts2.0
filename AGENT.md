@@ -110,5 +110,7 @@ Carga solo la skill que aplique a la tarea:
 
 - `Budget.jsx` concentra demasiada responsabilidad.
 - Normalización de categorías aparece en varias pantallas; preferir helpers compartidos.
-- No hay suite de tests frontend; la validación práctica es lint/build.
+- Hay tests de utilidades con Node y tests de Copilot con Vitest (`npm test`).
+- Nilo conserva hasta 10 consultas solo en memoria; cambia de conversación al cambiar usuario, familia o periodo.
+- Nilo solo usa IA tras un 409 `ai_consent_required` y el botón explícito de reintento, que envía `allow_ai: true`. El historial no se envía al proveedor.
 - `README.md` sigue siendo escaso para el producto real.
